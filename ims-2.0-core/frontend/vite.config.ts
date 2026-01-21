@@ -28,20 +28,38 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false,
+    sourcemap: process.env.NODE_ENV !== 'production',
     minify: 'terser',
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['recharts'],
-          icons: ['lucide-react'],
+        manualChunks: (id) => {
+          // Core React vendors
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router')) {
+            return 'vendor';
+          }
+          // UI components library
+          if (id.includes('node_modules/lucide-react')) {
+            return 'icons';
+          }
+          // Charts library
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3')) {
+            return 'charts';
+          }
+          // Data fetching
+          if (id.includes('node_modules/@tanstack') || id.includes('node_modules/axios')) {
+            return 'data';
+          }
+          // Utilities
+          if (id.includes('node_modules/clsx') || id.includes('node_modules/date-fns')) {
+            return 'utils';
+          }
         },
       },
     },
     terserOptions: {
       compress: {
-        drop_console: true,
+        drop_console: process.env.NODE_ENV === 'production',
         drop_debugger: true,
       },
     },

@@ -3,15 +3,22 @@ IMS 2.0 - FastAPI Main Application
 ===================================
 Main entry point for the API server
 """
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import time
 import logging
+from datetime import datetime
+
+from .config import settings
+from .database import Database, Cache
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=getattr(logging, settings.log_level.upper()),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Import routers
@@ -35,31 +42,51 @@ from .routers import (
     ai_router
 )
 
+# Track startup time
+startup_time: datetime = None
+
+
 # Lifespan context manager for startup/shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global startup_time
     # Startup
     logger.info("🚀 Starting IMS 2.0 API Server...")
-    # Initialize database connection here if needed
+    logger.info(f"   Environment: {settings.environment}")
+    logger.info(f"   Debug: {settings.debug}")
+    startup_time = datetime.utcnow()
+
+    # Connect to databases
+    try:
+        await Database.connect()
+        await Cache.connect()
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        if settings.environment == "production":
+            raise
+
     yield
+
     # Shutdown
     logger.info("🛑 Shutting down IMS 2.0 API Server...")
+    await Database.disconnect()
+    await Cache.disconnect()
 
 
 # Create FastAPI application
 app = FastAPI(
     title="IMS 2.0 - Retail Operating System",
     description="Complete Optical & Lifestyle Retail Operating System API",
-    version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    version=settings.app_version,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
 
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure for production
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,18 +109,74 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}")
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error", "error": str(exc)}
+        content={
+            "detail": "Internal server error",
+            "error": str(exc) if settings.debug else "An error occurred"
+        }
     )
 
 
-# Health check endpoint
+# Health check endpoint - basic
 @app.get("/health", tags=["Health"])
 async def health_check():
+    """Basic health check for load balancers"""
     return {
         "status": "healthy",
-        "service": "IMS 2.0 API",
-        "version": "2.0.0"
+        "service": settings.app_name,
+        "version": settings.app_version
     }
+
+
+# Health check endpoint - detailed
+@app.get("/health/detailed", tags=["Health"])
+async def health_check_detailed():
+    """Detailed health check with dependency status"""
+    mongo_health = await Database.health_check()
+    redis_health = await Cache.health_check()
+
+    # Determine overall status
+    overall_status = "healthy"
+    if mongo_health["status"] != "healthy":
+        overall_status = "degraded" if redis_health["status"] == "healthy" else "unhealthy"
+
+    uptime = None
+    if startup_time:
+        uptime = (datetime.utcnow() - startup_time).total_seconds()
+
+    return {
+        "status": overall_status,
+        "service": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.environment,
+        "timestamp": datetime.utcnow().isoformat(),
+        "uptime_seconds": uptime,
+        "dependencies": {
+            "mongodb": mongo_health,
+            "redis": redis_health
+        }
+    }
+
+
+# Ready check for Kubernetes
+@app.get("/ready", tags=["Health"])
+async def readiness_check():
+    """Kubernetes readiness probe"""
+    mongo_health = await Database.health_check()
+
+    if mongo_health["status"] != "healthy":
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "reason": "database_unavailable"}
+        )
+
+    return {"status": "ready"}
+
+
+# Live check for Kubernetes
+@app.get("/live", tags=["Health"])
+async def liveness_check():
+    """Kubernetes liveness probe"""
+    return {"status": "alive"}
 
 
 # Root endpoint
@@ -101,7 +184,8 @@ async def health_check():
 async def root():
     return {
         "message": "IMS 2.0 - Retail Operating System API",
-        "docs": "/docs",
+        "version": settings.app_version,
+        "docs": "/docs" if settings.debug else None,
         "health": "/health"
     }
 
@@ -128,4 +212,10 @@ app.include_router(ai_router, prefix="/api/v1/ai", tags=["AI Intelligence"])
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "api.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug,
+        workers=1 if settings.debug else settings.workers
+    )
