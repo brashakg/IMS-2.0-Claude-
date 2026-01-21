@@ -166,7 +166,7 @@ async def login(login_request: LoginRequest, request: Request):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Verify password using bcrypt
-    if not verify_password(login_request.password, user.get("password", "")):
+    if not verify_password(login_request.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Check if account is active
