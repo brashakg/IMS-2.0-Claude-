@@ -15,8 +15,11 @@ import {
   Tag,
   Filter,
   ChevronDown,
+  ClipboardCheck,
+  ListTodo,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { SOPChecklist } from '../../components/sop/SOPChecklist';
 
 type TaskType = 'FOLLOW_UP' | 'CALLBACK' | 'DELIVERY' | 'REMINDER' | 'OTHER';
 type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -118,6 +121,7 @@ const PRIORITY_CONFIG: Record<TaskPriority, { label: string; class: string }> = 
 };
 
 export function TasksPage() {
+  const [activeTab, setActiveTab] = useState<'tasks' | 'sop'>('tasks');
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('pending');
   const [typeFilter, setTypeFilter] = useState<TaskType | 'ALL'>('ALL');
 
@@ -172,16 +176,57 @@ export function TasksPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-          <p className="text-gray-500">Manage follow-ups and reminders</p>
+          <h1 className="text-2xl font-bold text-gray-900">Tasks & SOP</h1>
+          <p className="text-gray-500">Manage follow-ups, reminders, and operational checklists</p>
         </div>
-        <button className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          New Task
+        {activeTab === 'tasks' && (
+          <button className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            New Task
+          </button>
+        )}
+      </div>
+
+      {/* Main Tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('tasks')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'tasks'
+              ? 'border-bv-red-600 text-bv-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          )}
+        >
+          <ListTodo className="w-4 h-4" />
+          Tasks
+          {pendingCount > 0 && (
+            <span className="ml-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs">
+              {pendingCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('sop')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'sop'
+              ? 'border-bv-red-600 text-bv-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          )}
+        >
+          <ClipboardCheck className="w-4 h-4" />
+          SOP Checklists
         </button>
       </div>
 
-      {/* Stats */}
+      {/* SOP Tab Content */}
+      {activeTab === 'sop' && <SOPChecklist />}
+
+      {/* Tasks Tab Content */}
+      {activeTab === 'tasks' && (
+        <>
+          {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="card">
           <div className="flex items-center gap-3">
@@ -343,6 +388,8 @@ export function TasksPage() {
           })
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
