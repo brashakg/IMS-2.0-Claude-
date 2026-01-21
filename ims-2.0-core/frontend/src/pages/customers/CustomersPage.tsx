@@ -30,10 +30,13 @@ const mockCustomers: Customer[] = [
     phone: '9876543210',
     email: 'rajesh.kumar@email.com',
     customerType: 'B2C',
-    address: '123 Park Street',
-    city: 'Kolkata',
-    state: 'West Bengal',
-    pincode: '700016',
+    address: {
+      line1: '123 Park Street',
+      city: 'Kolkata',
+      state: 'West Bengal',
+      pincode: '700016',
+      country: 'India',
+    },
     patients: [
       { id: 'pat-001', customerId: 'cust-001', name: 'Rajesh Kumar', relation: 'Self', dateOfBirth: '1985-06-15' },
       { id: 'pat-002', customerId: 'cust-001', name: 'Priya Kumar', relation: 'Wife', dateOfBirth: '1988-03-22' },
@@ -47,10 +50,13 @@ const mockCustomers: Customer[] = [
     phone: '9988776655',
     email: 'sunita.sharma@email.com',
     customerType: 'B2C',
-    address: '45 Salt Lake, Sector V',
-    city: 'Kolkata',
-    state: 'West Bengal',
-    pincode: '700091',
+    address: {
+      line1: '45 Salt Lake, Sector V',
+      city: 'Kolkata',
+      state: 'West Bengal',
+      pincode: '700091',
+      country: 'India',
+    },
     patients: [
       { id: 'pat-004', customerId: 'cust-002', name: 'Sunita Sharma', relation: 'Self', dateOfBirth: '1975-11-20' },
     ],
@@ -63,10 +69,13 @@ const mockCustomers: Customer[] = [
     email: 'purchase@abcent.com',
     customerType: 'B2B',
     gstNumber: '19ABCDE1234F1Z5',
-    address: '100 Industrial Area',
-    city: 'Howrah',
-    state: 'West Bengal',
-    pincode: '711101',
+    address: {
+      line1: '100 Industrial Area',
+      city: 'Howrah',
+      state: 'West Bengal',
+      pincode: '711101',
+      country: 'India',
+    },
     patients: [],
     createdAt: '2024-03-10T09:00:00Z',
   },
@@ -308,7 +317,9 @@ export function CustomersPage() {
               <div className="flex items-start gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                 <span>
-                  {selectedCustomer.address}, {selectedCustomer.city}, {selectedCustomer.state} - {selectedCustomer.pincode}
+                  {selectedCustomer.address.line1}
+                  {selectedCustomer.address.line2 && `, ${selectedCustomer.address.line2}`}
+                  , {selectedCustomer.address.city}, {selectedCustomer.address.state} - {selectedCustomer.address.pincode}
                 </span>
               </div>
             )}

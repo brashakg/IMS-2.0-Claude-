@@ -5,6 +5,7 @@
 import { useState, useCallback } from 'react';
 import { Search, UserPlus, Phone, User, ChevronRight } from 'lucide-react';
 import type { Customer } from '../../types';
+import { AddCustomerModal } from './AddCustomerModal';
 
 interface CustomerSearchProps {
   onSelect: (customer: Customer) => void;
@@ -53,8 +54,8 @@ export function CustomerSearch({ onSelect }: CustomerSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Customer[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [initialFormData, setInitialFormData] = useState({ phone: '', name: '' });
 
   // Quick Walk-in customer for fast checkout
   const handleWalkInCustomer = useCallback(() => {
@@ -99,98 +100,18 @@ export function CustomerSearch({ onSelect }: CustomerSearchProps) {
     }, 300);
   }, []);
 
-  // Create new customer
-  const handleCreateCustomer = useCallback(async () => {
-    if (!newCustomer.name || !newCustomer.phone) return;
-
-    // Simulate API call - replace with actual API
-    const customer: Customer = {
-      id: `cust-${Date.now()}`,
-      name: newCustomer.name,
-      phone: newCustomer.phone,
-      email: newCustomer.email || undefined,
-      customerType: 'B2C',
-      patients: [
-        {
-          id: `pat-${Date.now()}`,
-          customerId: `cust-${Date.now()}`,
-          name: newCustomer.name,
-          relation: 'Self',
-        },
-      ],
-      createdAt: new Date().toISOString(),
-    };
-
+  // Handle customer save from modal
+  const handleCustomerSave = useCallback((customer: Customer) => {
     onSelect(customer);
-    setShowCreateForm(false);
-    setNewCustomer({ name: '', phone: '', email: '' });
-  }, [newCustomer, onSelect]);
+    setShowCreateModal(false);
+    setInitialFormData({ phone: '', name: '' });
+  }, [onSelect]);
 
-  // Render create form
-  if (showCreateForm) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium text-gray-900">New Customer</h3>
-          <button
-            onClick={() => setShowCreateForm(false)}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Cancel
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name *
-            </label>
-            <input
-              type="text"
-              value={newCustomer.name}
-              onChange={e => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
-              className="input-field"
-              placeholder="Customer name"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone *
-            </label>
-            <input
-              type="tel"
-              value={newCustomer.phone}
-              onChange={e => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
-              className="input-field"
-              placeholder="10-digit mobile"
-              maxLength={10}
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email (Optional)
-            </label>
-            <input
-              type="email"
-              value={newCustomer.email}
-              onChange={e => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
-              className="input-field"
-              placeholder="email@example.com"
-            />
-          </div>
-        </div>
-
-        <button
-          onClick={handleCreateCustomer}
-          disabled={!newCustomer.name || !newCustomer.phone || newCustomer.phone.length !== 10}
-          className="btn-primary w-full"
-        >
-          Create & Continue
-        </button>
-      </div>
-    );
-  }
+  // Open create modal with initial data
+  const openCreateModal = useCallback((phone = '', name = '') => {
+    setInitialFormData({ phone, name });
+    setShowCreateModal(true);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -207,11 +128,11 @@ export function CustomerSearch({ onSelect }: CustomerSearchProps) {
             Walk-in Sale
           </button>
           <button
-            onClick={() => setShowCreateForm(true)}
+            onClick={() => openCreateModal()}
             className="px-3 py-1.5 text-sm bg-bv-red-100 text-bv-red-700 rounded-lg hover:bg-bv-red-200 transition-colors flex items-center gap-1"
           >
             <UserPlus className="w-4 h-4" />
-            New Customer
+            Add Customer
           </button>
         </div>
       </div>
@@ -271,12 +192,11 @@ export function CustomerSearch({ onSelect }: CustomerSearchProps) {
           <p className="text-gray-500 mb-3">No customer found</p>
           <button
             onClick={() => {
-              setShowCreateForm(true);
-              setNewCustomer(prev => ({
-                ...prev,
-                phone: searchQuery.match(/^\d+$/) ? searchQuery : '',
-                name: !searchQuery.match(/^\d+$/) ? searchQuery : '',
-              }));
+              const isPhone = /^\d+$/.test(searchQuery);
+              openCreateModal(
+                isPhone ? searchQuery : '',
+                !isPhone ? searchQuery : ''
+              );
             }}
             className="btn-primary inline-flex items-center gap-2"
           >
@@ -289,12 +209,22 @@ export function CustomerSearch({ onSelect }: CustomerSearchProps) {
       {/* Quick Add Button */}
       {searchQuery.length < 3 && (
         <button
-          onClick={() => setShowCreateForm(true)}
+          onClick={() => openCreateModal()}
           className="w-full py-3 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-bv-red-300 hover:text-bv-red-600 transition-colors flex items-center justify-center gap-2"
         >
           <UserPlus className="w-5 h-5" />
           Add New Customer
         </button>
+      )}
+
+      {/* Add Customer Modal */}
+      {showCreateModal && (
+        <AddCustomerModal
+          onSave={handleCustomerSave}
+          onClose={() => setShowCreateModal(false)}
+          initialPhone={initialFormData.phone}
+          initialName={initialFormData.name}
+        />
       )}
     </div>
   );

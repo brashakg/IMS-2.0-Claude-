@@ -143,14 +143,34 @@ export interface StockUnit {
 // Customer Types
 // ============================================================================
 
+export interface CustomerAddress {
+  line1: string;
+  line2?: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+}
+
+export interface CustomerGST {
+  gstin: string;
+  legalName?: string;
+  pan?: string;
+}
+
 export interface Customer {
   id: string;
   name: string;
   phone: string;
   email?: string;
   customerType: 'B2C' | 'B2B';
+  customerGroup?: string;
   gstNumber?: string;
-  address?: string;
+  gst?: CustomerGST;
+  address?: CustomerAddress;
+  // Legacy flat address fields for backward compatibility
+  addressLine?: string;
   city?: string;
   state?: string;
   pincode?: string;
