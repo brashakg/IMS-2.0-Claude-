@@ -281,12 +281,16 @@ class FinanceEngine:
             HSNCode("9004", "Spectacles, goggles", Decimal("18"), "FRAME"),
             HSNCode("900410", "Sunglasses", Decimal("18"), "SUNGLASS"),
             HSNCode("900490", "Spectacle frames", Decimal("18"), "FRAME"),
+            HSNCode("900491", "Reading glasses", Decimal("18"), "READING_GLASSES"),
             HSNCode("9001", "Optical lenses", Decimal("18"), "OPTICAL_LENS"),
             HSNCode("900130", "Contact lenses", Decimal("12"), "CONTACT_LENS"),
+            HSNCode("900131", "Colored contact lenses", Decimal("12"), "COLORED_CONTACT_LENS"),
             HSNCode("9102", "Wrist watches", Decimal("18"), "WATCH"),
             HSNCode("8517", "Smartwatches", Decimal("18"), "SMARTWATCH"),
+            HSNCode("900492", "Smart glasses", Decimal("18"), "SMARTGLASSES"),
             HSNCode("9023", "Hearing aids", Decimal("5"), "HEARING_AID"),
             HSNCode("9105", "Wall clocks", Decimal("18"), "WALL_CLOCK"),
+            HSNCode("9003", "Accessories", Decimal("18"), "ACCESSORY"),
             HSNCode("9999", "Services", Decimal("18"), "SERVICE"),
         ]
         for code in codes:

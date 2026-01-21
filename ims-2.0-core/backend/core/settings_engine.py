@@ -361,10 +361,14 @@ class SettingsEngine:
         categories_data = [
             ("FRAME", "Frame", "900490", ["brand", "model_no", "color_code", "size", "material", "type"], False),
             ("SUNGLASS", "Sunglass", "900410", ["brand", "model_no", "color_code", "size", "lens_color"], False),
+            ("READING_GLASSES", "Reading Glasses", "900490", ["brand", "model_no", "power", "color", "size"], False),
             ("OPTICAL_LENS", "Optical Lens", "9001", ["brand", "type", "material", "coating", "power_range"], False),
             ("CONTACT_LENS", "Contact Lens", "90013100", ["brand", "product_name", "power", "bc", "dia", "pack_size"], True),
+            ("COLORED_CONTACT_LENS", "Colored Contact Lens", "90013100", ["brand", "product_name", "color", "power", "bc", "dia", "pack_size"], True),
             ("WATCH", "Watch", "9102", ["brand", "model_no", "dial_color", "strap_type", "movement"], False),
             ("SMARTWATCH", "Smartwatch", "8517", ["brand", "model_no", "color", "connectivity"], False),
+            ("SMARTGLASSES", "Smart Glasses", "900490", ["brand", "model_no", "color", "connectivity", "features"], False),
+            ("WALL_CLOCK", "Wall Clock", "9105", ["brand", "model_no", "size", "type", "material"], False),
             ("ACCESSORY", "Accessory", "9003", ["type", "brand", "description"], False),
             ("SERVICE", "Service", "9987", ["service_type", "description"], False),
         ]
@@ -378,7 +382,7 @@ class SettingsEngine:
                 mandatory_attributes=attrs,
                 track_expiry=track_exp,
                 track_batch=track_exp,
-                luxury_flag=(code in ["FRAME", "SUNGLASS", "WATCH"])
+                luxury_flag=(code in ["FRAME", "SUNGLASS", "WATCH", "SMARTGLASSES"])
             )
             self.categories[code] = cat
     

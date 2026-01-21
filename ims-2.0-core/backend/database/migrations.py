@@ -176,8 +176,9 @@ class DatabaseMigration:
                     "state": "Maharashtra",
                     "is_hq": True,
                     "is_active": True,
-                    "enabled_categories": ["FRAME", "SUNGLASS", "OPTICAL_LENS", "CONTACT_LENS", 
-                                           "WATCH", "SMARTWATCH", "ACCESSORIES", "SERVICES"],
+                    "enabled_categories": ["FRAME", "SUNGLASS", "READING_GLASSES", "OPTICAL_LENS",
+                                           "CONTACT_LENS", "COLORED_CONTACT_LENS", "WATCH", "SMARTWATCH",
+                                           "SMARTGLASSES", "WALL_CLOCK", "ACCESSORIES", "SERVICES"],
                     "created_at": datetime.now()
                 })
                 created.append("HQ store")

@@ -74,8 +74,9 @@ STORE_SCHEMA = {
         },
         "enabled_categories": {
             "bsonType": "array",
-            "items": {"enum": ["FRAME", "SUNGLASS", "OPTICAL_LENS", "CONTACT_LENS", 
-                              "WATCH", "SMARTWATCH", "ACCESSORIES", "SERVICES"]}
+            "items": {"enum": ["FRAME", "SUNGLASS", "READING_GLASSES", "OPTICAL_LENS",
+                              "CONTACT_LENS", "COLORED_CONTACT_LENS", "WATCH", "SMARTWATCH",
+                              "SMARTGLASSES", "WALL_CLOCK", "ACCESSORIES", "SERVICES"]}
         },
         "is_active": {"bsonType": "bool"},
         "is_hq": {"bsonType": "bool"},
@@ -90,8 +91,9 @@ PRODUCT_SCHEMA = {
         "product_id": {"bsonType": "string"},
         "sku": {"bsonType": "string"},
         "category": {
-            "enum": ["FRAME", "SUNGLASS", "OPTICAL_LENS", "CONTACT_LENS", 
-                    "WATCH", "SMARTWATCH", "ACCESSORIES", "SERVICES"]
+            "enum": ["FRAME", "SUNGLASS", "READING_GLASSES", "OPTICAL_LENS",
+                    "CONTACT_LENS", "COLORED_CONTACT_LENS", "WATCH", "SMARTWATCH",
+                    "SMARTGLASSES", "WALL_CLOCK", "ACCESSORIES", "SERVICES"]
         },
         "brand": {"bsonType": "string"},
         "model": {"bsonType": "string"},
@@ -232,7 +234,9 @@ ORDER_SCHEMA = {
                 "bsonType": "object",
                 "properties": {
                     "item_id": {"bsonType": "string"},
-                    "item_type": {"enum": ["FRAME", "LENS", "CONTACT_LENS", "ACCESSORY", "SERVICE"]},
+                    "item_type": {"enum": ["FRAME", "SUNGLASS", "READING_GLASSES", "LENS", "CONTACT_LENS",
+                                          "COLORED_CONTACT_LENS", "WATCH", "SMARTWATCH", "SMARTGLASSES",
+                                          "WALL_CLOCK", "ACCESSORY", "SERVICE"]},
                     "product_id": {"bsonType": "string"},
                     "product_name": {"bsonType": "string"},
                     "quantity": {"bsonType": "int"},

@@ -65,4 +65,6 @@ async def list_brands(category: Optional[str] = Query(None), current_user: dict 
 
 @router.get("/categories/list")
 async def list_categories(current_user: dict = Depends(get_current_user)):
-    return {"categories": ["FRAME", "SUNGLASS", "OPTICAL_LENS", "CONTACT_LENS", "WATCH", "SMARTWATCH", "ACCESSORIES", "SERVICES"]}
+    return {"categories": ["FRAME", "SUNGLASS", "READING_GLASSES", "OPTICAL_LENS", "CONTACT_LENS",
+                          "COLORED_CONTACT_LENS", "WATCH", "SMARTWATCH", "SMARTGLASSES", "WALL_CLOCK",
+                          "ACCESSORIES", "SERVICES"]}

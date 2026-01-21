@@ -306,10 +306,16 @@ class InventoryEngine:
         # Minimum stock levels per category
         self.min_stock_levels = {
             "FRAME": 2,
+            "SUNGLASS": 2,
+            "READING_GLASSES": 3,
+            "OPTICAL_LENS": 5,
             "CONTACT_LENS": 5,
+            "COLORED_CONTACT_LENS": 3,
             "ACCESSORY": 3,
             "WATCH": 1,
             "SMARTWATCH": 2,
+            "SMARTGLASSES": 1,
+            "WALL_CLOCK": 2,
         }
         
         # Expiry warning days

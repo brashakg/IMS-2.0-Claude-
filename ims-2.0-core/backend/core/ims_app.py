@@ -16,10 +16,16 @@ from hr_engine import Role
 class ProductCategory:
     FRAME = "FRAME"
     SUNGLASS = "SUNGLASS"
+    READING_GLASSES = "READING_GLASSES"
     OPTICAL_LENS = "OPTICAL_LENS"
     CONTACT_LENS = "CONTACT_LENS"
+    COLORED_CONTACT_LENS = "COLORED_CONTACT_LENS"
     WATCH = "WATCH"
+    SMARTWATCH = "SMARTWATCH"
+    SMARTGLASSES = "SMARTGLASSES"
+    WALL_CLOCK = "WALL_CLOCK"
     ACCESSORY = "ACCESSORY"
+    SERVICE = "SERVICE"
 from pricing_engine import PricingEngine
 from clinical_engine import ClinicalEngine, EyePower
 from hr_engine import HREngine

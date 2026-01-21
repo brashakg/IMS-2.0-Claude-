@@ -50,12 +50,17 @@ class PaymentMethod(Enum):
 
 class ItemType(Enum):
     FRAME = "FRAME"
+    SUNGLASS = "SUNGLASS"
+    READING_GLASSES = "READING_GLASSES"
     OPTICAL_LENS = "OPTICAL_LENS"
     CONTACT_LENS = "CONTACT_LENS"
+    COLORED_CONTACT_LENS = "COLORED_CONTACT_LENS"
     ACCESSORY = "ACCESSORY"
     SERVICE = "SERVICE"
     WATCH = "WATCH"
     SMARTWATCH = "SMARTWATCH"
+    SMARTGLASSES = "SMARTGLASSES"
+    WALL_CLOCK = "WALL_CLOCK"
 
 
 @dataclass
@@ -478,12 +483,17 @@ class POSSaleFlowEngine:
         # Determine discount class based on item type
         discount_class_map = {
             ItemType.FRAME: DiscountClass.PREMIUM,
+            ItemType.SUNGLASS: DiscountClass.LUXURY,
+            ItemType.READING_GLASSES: DiscountClass.MASS,
             ItemType.OPTICAL_LENS: DiscountClass.PREMIUM,
             ItemType.CONTACT_LENS: DiscountClass.MASS,
+            ItemType.COLORED_CONTACT_LENS: DiscountClass.MASS,
             ItemType.ACCESSORY: DiscountClass.MASS,
             ItemType.SERVICE: DiscountClass.SERVICE,
             ItemType.WATCH: DiscountClass.LUXURY,
             ItemType.SMARTWATCH: DiscountClass.PREMIUM,
+            ItemType.SMARTGLASSES: DiscountClass.LUXURY,
+            ItemType.WALL_CLOCK: DiscountClass.MASS,
         }
         
         # Create product for pricing engine

@@ -63,7 +63,9 @@ def test_repositories():
         "city": "Bokaro",
         "state": "Jharkhand",
         "is_active": True,
-        "enabled_categories": ["FRAME", "SUNGLASS", "OPTICAL_LENS"]
+        "enabled_categories": ["FRAME", "SUNGLASS", "READING_GLASSES", "OPTICAL_LENS",
+                                "CONTACT_LENS", "COLORED_CONTACT_LENS", "WATCH", "SMARTWATCH",
+                                "SMARTGLASSES", "WALL_CLOCK", "ACCESSORIES", "SERVICES"]
     })
     print(f"  Created: {store['store_name']}")
     
