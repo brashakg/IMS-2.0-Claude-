@@ -13,10 +13,10 @@ import uuid
 
 from .auth import get_current_user
 from ..database import Database
-from ...database.repositories.approval_repository import ApprovalRepository
-from ...database.repositories.order_repository import OrderRepository
-from ...database.repositories.user_repository import UserRepository
-from ...database.repositories.task_repository import TaskRepository
+from database.repositories.approval_repository import ApprovalRepository
+from database.repositories.order_repository import OrderRepository
+from database.repositories.user_repository import UserRepository
+from database.repositories.task_repository import TaskRepository
 
 router = APIRouter()
 

@@ -13,10 +13,10 @@ import uuid
 
 from .auth import get_current_user
 from ..database import Database
-from ...database.repositories.order_repository import OrderRepository
-from ...database.repositories.product_repository import ProductRepository
-from ...database.repositories.prescription_repository import PrescriptionRepository
-from ...database.repositories.user_repository import UserRepository
+from database.repositories.order_repository import OrderRepository
+from database.repositories.product_repository import ProductRepository
+from database.repositories.prescription_repository import PrescriptionRepository
+from database.repositories.user_repository import UserRepository
 from ...core.pricing_engine import (
     PricingEngine,
     Product as PricingProduct,

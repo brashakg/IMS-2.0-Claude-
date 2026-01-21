@@ -12,7 +12,7 @@ import bcrypt
 
 from .auth import get_current_user
 from ..database import Database
-from ...database.repositories.user_repository import UserRepository
+from database.repositories.user_repository import UserRepository
 
 router = APIRouter()
 
