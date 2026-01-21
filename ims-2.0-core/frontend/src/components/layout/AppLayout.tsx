@@ -123,7 +123,8 @@ export function AppLayout() {
 
   // Filter navigation based on user roles
   const filteredNavItems = navigationItems.filter((item) => {
-    if (!item.allowedRoles) return true;
+    if (!item.allowedRoles || !item.allowedRoles.length) return true;
+    if (!user || !user.roles) return false;
     return hasRole(item.allowedRoles);
   });
 
