@@ -16,6 +16,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { TaskSummary } from './TaskSummary';
 import { TargetProgress } from './TargetProgress';
 import { StoreComparison } from './StoreComparison';
@@ -25,6 +26,7 @@ import { TaskPriority } from '../../types';
 export function AreaManagerDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Mock data - multi-store metrics
   const areaStats = {
@@ -120,11 +122,13 @@ export function AreaManagerDashboard() {
   ];
 
   const handleApprove = async (id: string) => {
-    console.log('Approved:', id);
+    // TODO: Connect to API when backend is ready
+    toast.success('Request Approved', 'The request has been approved successfully');
   };
 
   const handleReject = async (id: string) => {
-    console.log('Rejected:', id);
+    // TODO: Connect to API when backend is ready
+    toast.warning('Request Rejected', 'The request has been rejected');
   };
 
   return (
