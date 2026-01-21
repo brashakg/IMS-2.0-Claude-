@@ -239,6 +239,17 @@ export function PaymentCollectionPanel({
           </div>
         )}
 
+        {/* Collect Payment Button */}
+        {inputTotal > 0 && (
+          <button
+            onClick={handleCollectPayments}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm"
+          >
+            <Calculator className="w-4 h-4" />
+            Collect ₹{inputTotal.toLocaleString('en-IN')} Payment
+          </button>
+        )}
+
         {/* Divider */}
         <div className="border-t border-gray-200 pt-3 mt-3">
           {/* Total Collected */}
