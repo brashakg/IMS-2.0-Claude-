@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { approvalApi } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 interface Approval {
   approval_id: string;
