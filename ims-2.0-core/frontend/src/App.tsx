@@ -26,6 +26,7 @@ import { ReportsPage } from './pages/reports/ReportsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { IntegrationsPage } from './pages/integrations/IntegrationsPage';
 import { AIPage } from './pages/ai/AIPage';
+import { ApprovalsPage } from './pages/ApprovalPage';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -165,6 +166,18 @@ function App() {
 
               {/* Tasks */}
               <Route path="tasks" element={<TasksPage />} />
+
+              {/* Approvals */}
+              <Route
+                path="approvals"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER']}
+                  >
+                    <ApprovalsPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* HR */}
               <Route
