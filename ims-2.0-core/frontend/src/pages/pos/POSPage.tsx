@@ -14,6 +14,7 @@ import { OrderDetailsPanel } from '../../components/pos/OrderDetailsPanel';
 import { PaymentCollectionPanel } from '../../components/pos/PaymentCollectionPanel';
 import { LensDetailsModal } from '../../components/pos/LensDetailsModal';
 import type { Customer, Patient, Prescription, Payment, PaymentMode, CartItem, ProductCategory } from '../../types';
+import { inventoryApi, orderApi, prescriptionApi } from '../../services/api';
 import {
   User, ShoppingCart, X, AlertCircle, Check,
   Glasses, Sun, Eye, Watch, Ear, Package, Wrench, Barcode,
@@ -142,43 +143,64 @@ export function POSPage() {
     setPrescription(newPrescription);
   }, []);
 
-  const handleBarcodeSubmit = useCallback((barcode: string) => {
+  const handleBarcodeSubmit = useCallback(async (barcode: string) => {
     if (!barcode.trim()) return;
 
-    const activeCat = CATEGORIES.find(c => c.id === activeCategory);
-    const productCategory = activeCat?.productCategory || 'FRAME';
-    const requiresPrescription = PRESCRIPTION_CATEGORIES.includes(activeCategory);
+    try {
+      setError(null);
 
-    // Mock product lookup by barcode
-    const mockProduct: CartItem = {
-      id: `item-${Date.now()}`,
-      itemType: productCategory,
-      productId: `prod-${barcode}`,
-      productName: `Ray-Ban RB${Math.floor(Math.random() * 9000) + 1000}`,
-      sku: barcode,
-      category: productCategory,
-      brand: 'Ray-Ban',
-      quantity: 1,
-      unitPrice: 4990,
-      mrp: 5990,
-      offerPrice: 4990,
-      discountPercent: 0,
-      discountAmount: 0,
-      finalPrice: 4990,
-      barcode,
-      requiresPrescription,
-      prescriptionLinked: requiresPrescription && !!prescription,
-      prescriptionId: prescription?.id,
-    };
+      // Fetch product from API by barcode
+      const stockUnit = await inventoryApi.getStockByBarcode(barcode);
 
-    setOrderItems(prev => [...prev, mockProduct]);
-    setBarcodeInput('');
-    toast.success(`Added: ${mockProduct.productName}`);
+      if (!stockUnit) {
+        throw new Error(`Product not found for barcode: ${barcode}`);
+      }
 
-    // If spectacles/contact lens, prompt for lens details
-    if (requiresPrescription && !prescription) {
-      setSelectedItemForLens(mockProduct.id);
-      setShowLensModal(true);
+      // Check if product is available
+      if (stockUnit.status !== 'AVAILABLE' || stockUnit.quantity < 1) {
+        throw new Error(`Product is not available (Status: ${stockUnit.status})`);
+      }
+
+      // Get product details - assuming stockUnit has product info or we need another API call
+      // For now, using stockUnit data directly
+      const activeCat = CATEGORIES.find(c => c.id === activeCategory);
+      const productCategory = activeCat?.productCategory || 'FRAME';
+      const requiresPrescription = PRESCRIPTION_CATEGORIES.includes(activeCategory);
+
+      const newItem: CartItem = {
+        id: `item-${Date.now()}`,
+        itemType: productCategory,
+        productId: stockUnit.productId,
+        productName: stockUnit.productName || `Product ${stockUnit.productId}`,
+        sku: stockUnit.sku || barcode,
+        category: productCategory,
+        brand: stockUnit.brand || '',
+        quantity: 1,
+        unitPrice: stockUnit.price || 0,
+        mrp: stockUnit.mrp || stockUnit.price || 0,
+        offerPrice: stockUnit.offerPrice || stockUnit.price || 0,
+        discountPercent: 0,
+        discountAmount: 0,
+        finalPrice: stockUnit.offerPrice || stockUnit.price || 0,
+        barcode,
+        requiresPrescription,
+        prescriptionLinked: requiresPrescription && !!prescription,
+        prescriptionId: prescription?.id,
+      };
+
+      setOrderItems(prev => [...prev, newItem]);
+      setBarcodeInput('');
+      toast.success(`Added: ${newItem.productName}`);
+
+      // If spectacles/contact lens, prompt for lens details
+      if (requiresPrescription && !prescription) {
+        setSelectedItemForLens(newItem.id);
+        setShowLensModal(true);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to lookup product';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   }, [activeCategory, prescription, toast]);
 
@@ -317,19 +339,84 @@ export function POSPage() {
     }
 
     try {
-      // Generate order number
-      const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
+      setError(null);
 
-      // Here we would call the API to create the order
-      // const order = await orderApi.createOrder({...});
+      // Prepare order data for API
+      const orderData = {
+        customerId: customer.id,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        patientId: selectedPatient?.id,
+        patientName: selectedPatient?.name,
+        storeId: user?.activeStoreId || '',
+        items: orderItems.map(item => ({
+          itemType: item.itemType,
+          productId: item.productId,
+          productName: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          mrp: item.mrp,
+          offerPrice: item.offerPrice,
+          discountPercent: item.discountPercent,
+          discountAmount: item.discountAmount,
+          finalPrice: item.finalPrice,
+          prescriptionId: item.prescriptionId,
+          lensOptions: item.lensOptions,
+        })),
+        payments: payments.map(p => ({
+          mode: p.mode,
+          amount: p.amount,
+          reference: p.reference,
+          notes: p.notes,
+        })),
+        subtotal,
+        totalDiscount: orderDiscount.amount,
+        taxAmount: gstAmount,
+        grandTotal,
+        amountPaid: totalPaid,
+        balanceDue: Math.max(0, balanceDue),
+        orderStatus: 'DRAFT',
+        paymentStatus: balanceDue <= 0 ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : 'UNPAID',
+        notes: orderDetails.notes,
+        expectedDelivery: orderDetails.deliveryDate
+          ? new Date(`${orderDetails.deliveryDate}T${orderDetails.deliveryTime || '00:00'}`).toISOString()
+          : undefined,
+        isExpress: orderDetails.isExpress,
+        isUrgent: orderDetails.isUrgent,
+      };
 
-      setCompletedOrderNumber(orderNumber);
+      // Create order via API
+      const createdOrder = await orderApi.createOrder(orderData);
+
+      // If we have full payment, confirm the order immediately
+      if (balanceDue <= 0) {
+        await orderApi.confirmOrder(createdOrder.id);
+      }
+
+      setCompletedOrderNumber(createdOrder.orderNumber);
       setOrderComplete(true);
-      toast.success(`Order ${orderNumber} created successfully!`);
+      toast.success(`Order ${createdOrder.orderNumber} created successfully!`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create order');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create order';
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
-  }, [customer, orderItems, balanceDue, payments, toast]);
+  }, [
+    customer,
+    selectedPatient,
+    orderItems,
+    payments,
+    balanceDue,
+    subtotal,
+    gstAmount,
+    grandTotal,
+    totalPaid,
+    orderDiscount,
+    orderDetails,
+    user,
+    toast,
+  ]);
 
   const handleNewOrder = useCallback(() => {
     handleClearCustomer();
