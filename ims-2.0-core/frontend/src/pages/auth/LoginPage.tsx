@@ -29,31 +29,12 @@ export function LoginPage() {
     }
 
     try {
-      // Get geolocation for staff (geo-fenced login)
-      let latitude: number | undefined;
-      let longitude: number | undefined;
-
-      if (navigator.geolocation) {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 10000,
-            });
-          });
-          latitude = position.coords.latitude;
-          longitude = position.coords.longitude;
-        } catch {
-          // Geolocation not available or denied - proceed anyway
-          console.log('Geolocation not available');
-        }
-      }
-
+      // Geolocation disabled - not required for login
       const response = await login({
         email,
         password,
-        latitude,
-        longitude,
+        latitude: undefined,
+        longitude: undefined,
       });
 
       if (response.success) {
