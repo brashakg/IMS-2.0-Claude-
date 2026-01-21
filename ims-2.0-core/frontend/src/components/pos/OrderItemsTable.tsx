@@ -2,28 +2,45 @@
 // IMS 2.0 - Order Items Table for POS
 // ============================================================================
 // Displays order items in a table format with Brand, Model, Color, Qty, Price
+// Includes real-time pricing validation based on SYSTEM_INTENT.md rules
 
-import { useState, useCallback } from 'react';
-import { Trash2, Plus, Minus, Scan, Eye, Settings2 } from 'lucide-react';
-import type { CartItem } from '../../types';
+import { useState, useCallback, useMemo } from 'react';
+import { Trash2, Plus, Minus, Scan, Eye, Settings2, AlertTriangle } from 'lucide-react';
+import type { CartItem, UserRole } from '../../types';
 import clsx from 'clsx';
+import {
+  validateMRPOfferPrice,
+  validateCartItemPricing,
+  getDiscountCapMessage,
+  type DiscountCategory,
+} from '../../utils/pricingValidation';
 
 interface OrderItemsTableProps {
   items: CartItem[];
   onRemoveItem: (itemId: string) => void;
   onUpdateQuantity: (itemId: string, quantity: number) => void;
+  onUpdateItemPrice: (itemId: string, newPrice: number, discountPercent: number) => void;
   onAddByBarcode: (barcode: string) => void;
   onOpenLensDetails: (itemId: string) => void;
+  userRole: UserRole;
+  userDiscountCap?: number;
 }
 
 export function OrderItemsTable({
   items,
   onRemoveItem,
   onUpdateQuantity,
+  onUpdateItemPrice,
   onAddByBarcode,
   onOpenLensDetails,
+  userRole,
+  userDiscountCap,
 }: OrderItemsTableProps) {
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingPrice, setEditingPrice] = useState<number>(0);
+  const [editingDiscount, setEditingDiscount] = useState<number>(0);
+  const [pricingErrors, setPricingErrors] = useState<Map<string, string>>(new Map());
 
   const handleBarcodeSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +64,94 @@ export function OrderItemsTable({
     const color = nameParts.length > 2 ? nameParts[nameParts.length - 1] : '-';
     return { brand, model, color };
   };
+
+  // Validate MRP vs Offer Price for an item
+  const validateItemMRPOfferprice = useCallback(
+    (item: CartItem): { isValid: boolean; error?: string } => {
+      return validateMRPOfferPrice(item.mrp || item.unitPrice, item.offerPrice || item.unitPrice);
+    },
+    []
+  );
+
+  // Validate discount for an item
+  const validateItemDiscount = useCallback(
+    (item: CartItem, requestedDiscount: number) => {
+      // Map CartItem category to DiscountCategory
+      const discountCategory: DiscountCategory =
+        item.category === 'SERVICES' ? 'SERVICE' :
+        item.category === 'ACCESSORIES' ? 'MASS' :
+        item.category === 'CONTACT_LENS' || item.category === 'COLORED_CONTACT_LENS' ? 'MASS' :
+        item.category === 'FRAME' || item.category === 'OPTICAL_LENS' ? 'PREMIUM' :
+        item.category === 'WATCH' || item.category === 'SMARTWATCH' || item.category === 'SMARTGLASSES' ? 'LUXURY' :
+        'PREMIUM';
+
+      return validateCartItemPricing({
+        mrp: item.mrp || item.unitPrice,
+        offerPrice: item.offerPrice || item.unitPrice,
+        quantity: item.quantity,
+        requestedDiscountPercent: requestedDiscount,
+        userRole,
+        userDiscountCap,
+        productCategory: discountCategory,
+        brandName: item.brand,
+      });
+    },
+    [userRole, userDiscountCap]
+  );
+
+  // Handle price change
+  const handlePriceChange = useCallback(
+    (item: CartItem, newPrice: number) => {
+      const basePrice = item.offerPrice || item.unitPrice;
+
+      // Calculate discount percentage
+      const discountPercent = basePrice > 0 ? ((basePrice - newPrice) / basePrice) * 100 : 0;
+
+      // Validate
+      const validation = validateItemDiscount(item, discountPercent);
+
+      if (validation.decision === 'BLOCKED') {
+        setPricingErrors(prev => new Map(prev).set(item.id, validation.reason || 'Invalid pricing'));
+        return;
+      }
+
+      if (validation.decision === 'REQUIRES_APPROVAL') {
+        setPricingErrors(prev => new Map(prev).set(item.id, validation.reason || 'Requires approval'));
+        // In future, trigger approval request here
+        return;
+      }
+
+      // Valid - update
+      setPricingErrors(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(item.id);
+        return newMap;
+      });
+
+      onUpdateItemPrice(item.id, newPrice, discountPercent);
+    },
+    [validateItemDiscount, onUpdateItemPrice]
+  );
+
+  // Get discount cap message for item
+  const getItemDiscountMessage = useCallback(
+    (item: CartItem): string => {
+      const discountCategory: DiscountCategory =
+        item.category === 'SERVICES' ? 'SERVICE' :
+        item.category === 'ACCESSORIES' ? 'MASS' :
+        item.category === 'CONTACT_LENS' || item.category === 'COLORED_CONTACT_LENS' ? 'MASS' :
+        item.category === 'FRAME' || item.category === 'OPTICAL_LENS' ? 'PREMIUM' :
+        item.category === 'WATCH' || item.category === 'SMARTWATCH' || item.category === 'SMARTGLASSES' ? 'LUXURY' :
+        'PREMIUM';
+
+      return getDiscountCapMessage({
+        userRole,
+        productCategory: discountCategory,
+        brandName: item.brand,
+      });
+    },
+    [userRole]
+  );
 
   return (
     <div className="border border-gray-200 rounded-lg">
@@ -178,19 +283,52 @@ export function OrderItemsTable({
                       </div>
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-gray-500">₹</span>
-                        <input
-                          type="number"
-                          defaultValue={item.finalPrice}
-                          className="w-20 px-2 py-1 text-right text-sm border border-gray-200 rounded focus:border-bv-red-500 focus:outline-none"
-                        />
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-gray-500">₹</span>
+                          <input
+                            type="number"
+                            defaultValue={item.finalPrice}
+                            onBlur={(e) => {
+                              const newPrice = parseFloat(e.target.value) || 0;
+                              if (newPrice !== item.finalPrice) {
+                                handlePriceChange(item, newPrice);
+                              }
+                            }}
+                            className={clsx(
+                              'w-20 px-2 py-1 text-right text-sm border rounded focus:outline-none',
+                              pricingErrors.has(item.id)
+                                ? 'border-red-500 bg-red-50 focus:border-red-600'
+                                : 'border-gray-200 focus:border-bv-red-500'
+                            )}
+                            title={getItemDiscountMessage(item)}
+                          />
+                        </div>
+                        {item.discountAmount > 0 && !pricingErrors.has(item.id) && (
+                          <p className="text-xs text-green-600">
+                            -{item.discountPercent}% off
+                          </p>
+                        )}
+                        {pricingErrors.has(item.id) && (
+                          <div className="flex items-start gap-1 text-xs text-red-600 max-w-[150px]">
+                            <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                            <span className="break-words">{pricingErrors.get(item.id)}</span>
+                          </div>
+                        )}
+                        {/* Show MRP/Offer price validation warning */}
+                        {(() => {
+                          const mrpValidation = validateItemMRPOfferprice(item);
+                          if (!mrpValidation.isValid) {
+                            return (
+                              <div className="flex items-start gap-1 text-xs text-orange-600 max-w-[150px]">
+                                <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                <span className="break-words">{mrpValidation.error}</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
-                      {item.discountAmount > 0 && (
-                        <p className="text-xs text-green-600 mt-1">
-                          -{item.discountPercent}% off
-                        </p>
-                      )}
                     </td>
                     <td className="py-3 px-3">
                       <button

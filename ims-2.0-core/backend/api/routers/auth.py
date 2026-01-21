@@ -3,7 +3,7 @@ IMS 2.0 - Authentication Router
 ================================
 Login, logout, token management
 """
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -15,6 +15,7 @@ from math import radians, cos, sin, asin, sqrt
 
 from ..database import Database
 from ...database.repositories.user_repository import UserRepository
+from ..middleware import limiter
 
 router = APIRouter()
 security = HTTPBearer()
@@ -133,10 +134,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 # ============================================================================
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
+@limiter.limit("5/minute")  # Max 5 login attempts per minute
+async def login(request: LoginRequest, req: Request):
     """
     Authenticate user and return JWT token
     Validates geo-location for store staff
+    Rate limited to 5 attempts per minute to prevent brute force attacks
     """
     repo = get_user_repository()
 
@@ -276,13 +279,16 @@ async def refresh_token(request: RefreshTokenRequest):
 
 
 @router.post("/change-password")
+@limiter.limit("3/hour")  # Max 3 password changes per hour
 async def change_password(
     request: ChangePasswordRequest,
+    req: Request,
     current_user: dict = Depends(get_current_user)
 ):
     """
     Change user password
     Verifies current password before updating with bcrypt
+    Rate limited to 3 attempts per hour
     """
     repo = get_user_repository()
 

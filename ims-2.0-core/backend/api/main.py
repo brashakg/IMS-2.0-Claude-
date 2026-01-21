@@ -13,6 +13,13 @@ from datetime import datetime
 
 from .config import settings
 from .database import Database, Cache
+from .middleware import (
+    limiter,
+    sanitize_request_body,
+    add_security_headers
+)
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 # Configure logging
 logging.basicConfig(
@@ -92,6 +99,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate Limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Security headers middleware
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    return await add_security_headers(request, call_next)
+
+# Input sanitization middleware
+@app.middleware("http")
+async def input_sanitization_middleware(request: Request, call_next):
+    await sanitize_request_body(request)
+    return await call_next(request)
 
 # Request timing middleware
 @app.middleware("http")

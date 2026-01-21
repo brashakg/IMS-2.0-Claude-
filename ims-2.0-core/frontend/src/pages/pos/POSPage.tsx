@@ -222,6 +222,23 @@ export function POSPage() {
     }));
   }, []);
 
+  const handleUpdateItemPrice = useCallback((itemId: string, newPrice: number, discountPercent: number) => {
+    setOrderItems(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+
+      const basePrice = item.offerPrice || item.unitPrice;
+      const discountAmount = Math.round((basePrice * item.quantity * discountPercent) / 100);
+      const finalPrice = newPrice * item.quantity;
+
+      return {
+        ...item,
+        discountPercent,
+        discountAmount,
+        finalPrice,
+      };
+    }));
+  }, []);
+
   const handleRemoveItem = useCallback((itemId: string) => {
     setOrderItems(prev => prev.filter(item => item.id !== itemId));
     toast.success('Item removed');
@@ -518,8 +535,11 @@ export function POSPage() {
                   items={orderItems}
                   onRemoveItem={handleRemoveItem}
                   onUpdateQuantity={handleUpdateItemQuantity}
+                  onUpdateItemPrice={handleUpdateItemPrice}
                   onAddByBarcode={handleBarcodeSubmit}
                   onOpenLensDetails={handleOpenLensDetails}
+                  userRole={user?.activeRole || 'SALES_STAFF'}
+                  userDiscountCap={user?.discountCap}
                 />
               </div>
             </div>
