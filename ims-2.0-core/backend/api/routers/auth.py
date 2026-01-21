@@ -17,6 +17,10 @@ from ..database import Database
 from database.repositories.user_repository import UserRepository
 from ..middleware import limiter
 
+# Import PyMongo for sync operations in auth
+from pymongo import MongoClient
+from ..config import settings
+
 router = APIRouter()
 security = HTTPBearer()
 
@@ -25,6 +29,18 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "ims-2.0-secret-key-change-in-productio
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
 
+# Sync MongoDB client for auth operations
+sync_mongo_client = None
+sync_db = None
+
+def get_sync_db():
+    """Get synchronous MongoDB connection for repository operations"""
+    global sync_mongo_client, sync_db
+    if sync_mongo_client is None:
+        sync_mongo_client = MongoClient(settings.mongodb_url)
+        sync_db = sync_mongo_client[settings.mongodb_db_name]
+    return sync_db
+
 # Initialize repository
 user_repo = None
 
@@ -32,8 +48,8 @@ def get_user_repository():
     """Initialize user repository with database connection"""
     global user_repo
     if user_repo is None:
-        db = Database.get_collection("users")
-        user_repo = UserRepository(db)
+        db = get_sync_db()
+        user_repo = UserRepository(db["users"])
     return user_repo
 
 
