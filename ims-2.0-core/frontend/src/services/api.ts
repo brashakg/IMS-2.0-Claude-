@@ -5,10 +5,12 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse, LoginCredentials, LoginResponse, User } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 // Create axios instance
+// If API_BASE_URL is set (e.g., http://localhost:8001), use it with /api/v1
+// If empty, use proxy path /api/v1
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL ? `${API_BASE_URL}/api/${API_VERSION}` : `/api/${API_VERSION}`,
   timeout: 30000,
