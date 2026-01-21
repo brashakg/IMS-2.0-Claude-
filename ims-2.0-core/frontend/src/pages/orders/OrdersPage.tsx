@@ -1,8 +1,9 @@
 // ============================================================================
 // IMS 2.0 - Orders Page
+// Full-featured order management with MockDataContext integration
 // ============================================================================
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Search,
   FileText,
@@ -19,134 +20,24 @@ import {
   Eye,
   Printer,
   RefreshCw,
+  X,
+  Phone,
+  MapPin,
+  Download,
+  Send,
+  MessageSquare,
+  IndianRupee,
+  Receipt,
+  ArrowLeft,
+  Edit2,
+  Trash2,
+  Plus,
+  ChevronDown,
 } from 'lucide-react';
-import type { OrderStatus, PaymentStatus } from '../../types';
+import type { OrderStatus, PaymentStatus, PaymentMode, Order } from '../../types';
+import { useMockData } from '../../context/MockDataContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
-
-// Mock orders data
-const mockOrders = [
-  {
-    id: 'ord-001',
-    orderNumber: 'BV-KOL-001-2501-0001',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-001',
-    customerName: 'Rajesh Kumar',
-    customerPhone: '9876543210',
-    patientName: 'Rajesh Kumar',
-    items: [
-      { name: 'Ray-Ban RB5154 Clubmaster', qty: 1, price: 6890 },
-      { name: 'Essilor Crizal Prevencia (Pair)', qty: 1, price: 7000 },
-    ],
-    subtotal: 13890,
-    discount: 1000,
-    tax: 2320,
-    grandTotal: 15210,
-    amountPaid: 15210,
-    balanceDue: 0,
-    orderStatus: 'DELIVERED' as OrderStatus,
-    paymentStatus: 'PAID' as PaymentStatus,
-    hasWorkshopJob: true,
-    workshopStatus: 'DELIVERED',
-    createdBy: 'Amit Sales',
-    createdAt: '2025-01-18T10:30:00Z',
-    deliveredAt: '2025-01-20T14:00:00Z',
-  },
-  {
-    id: 'ord-002',
-    orderNumber: 'BV-KOL-001-2501-0002',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-002',
-    customerName: 'Sunita Sharma',
-    customerPhone: '9988776655',
-    patientName: 'Sunita Sharma',
-    items: [
-      { name: 'Zeiss DriveSafe (Pair)', qty: 1, price: 15000 },
-      { name: 'Titan Frame Premium', qty: 1, price: 8500 },
-    ],
-    subtotal: 23500,
-    discount: 2000,
-    tax: 3870,
-    grandTotal: 25370,
-    amountPaid: 10000,
-    balanceDue: 15370,
-    orderStatus: 'READY' as OrderStatus,
-    paymentStatus: 'PARTIAL' as PaymentStatus,
-    hasWorkshopJob: true,
-    workshopStatus: 'READY',
-    createdBy: 'Priya Sales',
-    createdAt: '2025-01-19T15:45:00Z',
-  },
-  {
-    id: 'ord-003',
-    orderNumber: 'BV-KOL-001-2501-0003',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-003',
-    customerName: 'Vikram Mehta',
-    customerPhone: '9123456789',
-    items: [
-      { name: 'Apple Watch Series 9', qty: 1, price: 42900 },
-    ],
-    subtotal: 42900,
-    discount: 0,
-    tax: 7722,
-    grandTotal: 50622,
-    amountPaid: 50622,
-    balanceDue: 0,
-    orderStatus: 'DELIVERED' as OrderStatus,
-    paymentStatus: 'PAID' as PaymentStatus,
-    hasWorkshopJob: false,
-    createdBy: 'Amit Sales',
-    createdAt: '2025-01-20T11:00:00Z',
-    deliveredAt: '2025-01-20T11:30:00Z',
-  },
-  {
-    id: 'ord-004',
-    orderNumber: 'BV-KOL-001-2501-0004',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-004',
-    customerName: 'Ananya Das',
-    customerPhone: '9876512345',
-    patientName: 'Ananya Das',
-    items: [
-      { name: 'Acuvue Oasys (6 pack)', qty: 2, price: 3600 },
-    ],
-    subtotal: 3600,
-    discount: 200,
-    tax: 612,
-    grandTotal: 4012,
-    amountPaid: 4012,
-    balanceDue: 0,
-    orderStatus: 'CONFIRMED' as OrderStatus,
-    paymentStatus: 'PAID' as PaymentStatus,
-    hasWorkshopJob: false,
-    createdBy: 'Priya Sales',
-    createdAt: '2025-01-21T09:15:00Z',
-  },
-  {
-    id: 'ord-005',
-    orderNumber: 'BV-KOL-001-2501-0005',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-005',
-    customerName: 'Rahul Singh',
-    customerPhone: '9988112233',
-    patientName: 'Rahul Singh',
-    items: [
-      { name: 'Ray-Ban Meta Smart Glasses', qty: 1, price: 29990 },
-    ],
-    subtotal: 29990,
-    discount: 0,
-    tax: 5398,
-    grandTotal: 35388,
-    amountPaid: 0,
-    balanceDue: 35388,
-    orderStatus: 'IN_PROGRESS' as OrderStatus,
-    paymentStatus: 'PENDING' as PaymentStatus,
-    hasWorkshopJob: true,
-    workshopStatus: 'IN_PROGRESS',
-    createdBy: 'Amit Sales',
-    createdAt: '2025-01-21T14:30:00Z',
-  },
-];
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: React.ComponentType<any>; class: string }> = {
   DRAFT: { label: 'Draft', icon: FileText, class: 'bg-gray-100 text-gray-600' },
@@ -163,41 +54,63 @@ const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; class: strin
   PAID: { label: 'Paid', class: 'badge-success' },
 };
 
+const PAYMENT_MODES: { value: PaymentMode; label: string }[] = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'CARD', label: 'Card' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+  { value: 'EMI', label: 'EMI' },
+];
+
 export function OrdersPage() {
+  const { orders, updateOrderStatus, addPaymentToOrder, getCustomerById } = useMockData();
+  const toast = useToast();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
+  const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
-  const [selectedOrder, setSelectedOrder] = useState<typeof mockOrders[0] | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+
+  // Payment form
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
+  const [paymentReference, setPaymentReference] = useState('');
 
   // Filter orders
-  const filteredOrders = mockOrders.filter(order => {
-    const matchesSearch = !searchQuery ||
-      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerPhone.includes(searchQuery);
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      const matchesSearch = !searchQuery ||
+        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customerPhone?.includes(searchQuery);
 
-    const matchesStatus = statusFilter === 'ALL' || order.orderStatus === statusFilter;
+      const matchesStatus = statusFilter === 'ALL' || order.orderStatus === statusFilter;
+      const matchesPayment = paymentFilter === 'ALL' || order.paymentStatus === paymentFilter;
 
-    // Date filtering
-    let matchesDate = true;
-    const orderDate = new Date(order.createdAt);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+      // Date filtering
+      let matchesDate = true;
+      const orderDate = new Date(order.createdAt);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    if (dateFilter === 'today') {
-      matchesDate = orderDate >= today;
-    } else if (dateFilter === 'week') {
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      matchesDate = orderDate >= weekAgo;
-    } else if (dateFilter === 'month') {
-      const monthAgo = new Date(today);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      matchesDate = orderDate >= monthAgo;
-    }
+      if (dateFilter === 'today') {
+        matchesDate = orderDate >= today;
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        matchesDate = orderDate >= weekAgo;
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        matchesDate = orderDate >= monthAgo;
+      }
 
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+      return matchesSearch && matchesStatus && matchesPayment && matchesDate;
+    });
+  }, [orders, searchQuery, statusFilter, paymentFilter, dateFilter]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -214,15 +127,422 @@ export function OrdersPage() {
   };
 
   // Stats
-  const todayOrders = mockOrders.filter(o => {
-    const orderDate = new Date(o.createdAt);
+  const stats = useMemo(() => {
     const today = new Date();
-    return orderDate.toDateString() === today.toDateString();
-  });
-  const todaySales = todayOrders.reduce((sum, o) => sum + o.grandTotal, 0);
-  const pendingDelivery = mockOrders.filter(o => ['CONFIRMED', 'IN_PROGRESS', 'READY'].includes(o.orderStatus)).length;
-  const pendingPayments = mockOrders.filter(o => o.balanceDue > 0).reduce((sum, o) => sum + o.balanceDue, 0);
+    today.setHours(0, 0, 0, 0);
 
+    const todayOrders = orders.filter(o => new Date(o.createdAt) >= today);
+    const todaySales = todayOrders.reduce((sum, o) => sum + o.grandTotal, 0);
+    const pendingDelivery = orders.filter(o => ['CONFIRMED', 'IN_PROGRESS', 'READY'].includes(o.orderStatus)).length;
+    const pendingPayments = orders.filter(o => o.balanceDue > 0).reduce((sum, o) => sum + o.balanceDue, 0);
+    const avgOrderValue = orders.length > 0 ? orders.reduce((sum, o) => sum + o.grandTotal, 0) / orders.length : 0;
+
+    return { todayOrders: todayOrders.length, todaySales, pendingDelivery, pendingPayments, avgOrderValue };
+  }, [orders]);
+
+  // Handle status update
+  const handleStatusUpdate = (orderId: string, newStatus: OrderStatus) => {
+    updateOrderStatus(orderId, newStatus);
+    toast.success(`Order status updated to ${STATUS_CONFIG[newStatus].label}`);
+    setShowStatusModal(false);
+  };
+
+  // Handle payment collection
+  const handleCollectPayment = () => {
+    if (!selectedOrder || paymentAmount <= 0) return;
+
+    if (paymentAmount > selectedOrder.balanceDue) {
+      toast.error('Payment amount cannot exceed balance due');
+      return;
+    }
+
+    addPaymentToOrder(selectedOrder.id, {
+      mode: paymentMode,
+      amount: paymentAmount,
+      reference: paymentReference || undefined,
+    });
+
+    toast.success(`Payment of ${formatCurrency(paymentAmount)} collected successfully`);
+    setShowPaymentModal(false);
+    setPaymentAmount(0);
+    setPaymentReference('');
+
+    // Refresh selected order
+    const updatedOrder = orders.find(o => o.id === selectedOrder.id);
+    if (updatedOrder) setSelectedOrder(updatedOrder);
+  };
+
+  // Send WhatsApp notification
+  const sendWhatsAppNotification = (order: Order, type: 'ready' | 'reminder') => {
+    const message = type === 'ready'
+      ? `Hi ${order.customerName}, your order ${order.orderNumber} is ready for pickup! Visit our store to collect.`
+      : `Hi ${order.customerName}, this is a reminder about your pending balance of ${formatCurrency(order.balanceDue)} for order ${order.orderNumber}.`;
+
+    // In production, this would call the WhatsApp API
+    toast.success(`WhatsApp notification sent to ${order.customerPhone}`);
+  };
+
+  // Print invoice
+  const printInvoice = (order: Order) => {
+    toast.info(`Printing invoice for ${order.orderNumber}`);
+    // In production, this would trigger print dialog
+  };
+
+  // Order Detail View
+  if (selectedOrder) {
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setSelectedOrder(null)}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-900">{selectedOrder.orderNumber}</h1>
+            <p className="text-gray-500">Created {formatDate(selectedOrder.createdAt)}</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => printInvoice(selectedOrder)}
+              className="btn-outline flex items-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+            <button
+              onClick={() => sendWhatsAppNotification(selectedOrder, 'ready')}
+              className="btn-outline flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50"
+            >
+              <MessageSquare className="w-4 h-4" />
+              WhatsApp
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 laptop:grid-cols-3 gap-4">
+          {/* Order Info */}
+          <div className="laptop:col-span-2 space-y-4">
+            {/* Status & Customer */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-900">Order Details</h2>
+                <div className="flex items-center gap-2">
+                  <span className={clsx(
+                    'px-3 py-1 rounded-full text-sm font-medium',
+                    STATUS_CONFIG[selectedOrder.orderStatus].class
+                  )}>
+                    {STATUS_CONFIG[selectedOrder.orderStatus].label}
+                  </span>
+                  <button
+                    onClick={() => setShowStatusModal(true)}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Customer</p>
+                  <p className="font-medium">{selectedOrder.customerName}</p>
+                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                    <Phone className="w-3 h-3" />
+                    {selectedOrder.customerPhone}
+                  </p>
+                </div>
+                {selectedOrder.patientName && (
+                  <div>
+                    <p className="text-sm text-gray-500">Patient</p>
+                    <p className="font-medium">{selectedOrder.patientName}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Order Items */}
+            <div className="card">
+              <h2 className="font-semibold text-gray-900 mb-4">Items</h2>
+              <div className="divide-y divide-gray-200">
+                {selectedOrder.items.map(item => (
+                  <div key={item.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">{item.productName}</p>
+                      <p className="text-sm text-gray-500">SKU: {item.sku} • Qty: {item.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{formatCurrency(item.finalPrice)}</p>
+                      {item.discountAmount > 0 && (
+                        <p className="text-sm text-green-600">-{formatCurrency(item.discountAmount)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals */}
+              <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span>{formatCurrency(selectedOrder.subtotal)}</span>
+                </div>
+                {selectedOrder.totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount</span>
+                    <span>-{formatCurrency(selectedOrder.totalDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Tax (18%)</span>
+                  <span>{formatCurrency(selectedOrder.taxAmount)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                  <span>Grand Total</span>
+                  <span>{formatCurrency(selectedOrder.grandTotal)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment History */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-900">Payment History</h2>
+                <span className={PAYMENT_STATUS_CONFIG[selectedOrder.paymentStatus].class}>
+                  {PAYMENT_STATUS_CONFIG[selectedOrder.paymentStatus].label}
+                </span>
+              </div>
+
+              {selectedOrder.payments.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No payments recorded</p>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {selectedOrder.payments.map(payment => (
+                    <div key={payment.id} className="py-3 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{payment.mode}</p>
+                        <p className="text-sm text-gray-500">
+                          {formatDate(payment.paidAt)}
+                          {payment.reference && ` • Ref: ${payment.reference}`}
+                        </p>
+                      </div>
+                      <p className="font-medium text-green-600">{formatCurrency(payment.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Amount Paid</p>
+                  <p className="font-bold text-green-600">{formatCurrency(selectedOrder.amountPaid)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Balance Due</p>
+                  <p className={clsx('font-bold', selectedOrder.balanceDue > 0 ? 'text-red-600' : 'text-gray-900')}>
+                    {formatCurrency(selectedOrder.balanceDue)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions Sidebar */}
+          <div className="space-y-4">
+            {/* Quick Actions */}
+            <div className="card">
+              <h2 className="font-semibold text-gray-900 mb-4">Quick Actions</h2>
+              <div className="space-y-2">
+                {selectedOrder.balanceDue > 0 && (
+                  <button
+                    onClick={() => {
+                      setPaymentAmount(selectedOrder.balanceDue);
+                      setShowPaymentModal(true);
+                    }}
+                    className="w-full btn-primary flex items-center justify-center gap-2"
+                  >
+                    <IndianRupee className="w-4 h-4" />
+                    Collect Payment
+                  </button>
+                )}
+
+                {selectedOrder.orderStatus === 'READY' && (
+                  <button
+                    onClick={() => handleStatusUpdate(selectedOrder.id, 'DELIVERED')}
+                    className="w-full btn-outline flex items-center justify-center gap-2 text-green-600 border-green-200 hover:bg-green-50"
+                  >
+                    <Truck className="w-4 h-4" />
+                    Mark Delivered
+                  </button>
+                )}
+
+                {selectedOrder.orderStatus === 'IN_PROGRESS' && (
+                  <button
+                    onClick={() => handleStatusUpdate(selectedOrder.id, 'READY')}
+                    className="w-full btn-outline flex items-center justify-center gap-2"
+                  >
+                    <Package className="w-4 h-4" />
+                    Mark Ready
+                  </button>
+                )}
+
+                <button
+                  onClick={() => sendWhatsAppNotification(selectedOrder, selectedOrder.balanceDue > 0 ? 'reminder' : 'ready')}
+                  className="w-full btn-outline flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  Send Notification
+                </button>
+
+                <button
+                  onClick={() => printInvoice(selectedOrder)}
+                  className="w-full btn-outline flex items-center justify-center gap-2"
+                >
+                  <Receipt className="w-4 h-4" />
+                  Print Receipt
+                </button>
+
+                <button className="w-full btn-outline flex items-center justify-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Download Invoice
+                </button>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="card">
+              <h2 className="font-semibold text-gray-900 mb-4">Timeline</h2>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Order Created</p>
+                    <p className="text-xs text-gray-500">{formatDate(selectedOrder.createdAt)}</p>
+                  </div>
+                </div>
+                {selectedOrder.deliveredAt && (
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <Truck className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">Delivered</p>
+                      <p className="text-xs text-gray-500">{formatDate(selectedOrder.deliveredAt)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Collect Payment</h2>
+                <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={e => setPaymentAmount(Number(e.target.value))}
+                    max={selectedOrder.balanceDue}
+                    className="input-field"
+                    placeholder="Enter amount"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Balance due: {formatCurrency(selectedOrder.balanceDue)}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
+                  <select
+                    value={paymentMode}
+                    onChange={e => setPaymentMode(e.target.value as PaymentMode)}
+                    className="input-field"
+                  >
+                    {PAYMENT_MODES.map(mode => (
+                      <option key={mode.value} value={mode.value}>{mode.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reference (Optional)</label>
+                  <input
+                    type="text"
+                    value={paymentReference}
+                    onChange={e => setPaymentReference(e.target.value)}
+                    className="input-field"
+                    placeholder="Transaction ID, Cheque no., etc."
+                  />
+                </div>
+
+                <button
+                  onClick={handleCollectPayment}
+                  disabled={paymentAmount <= 0}
+                  className="w-full btn-primary"
+                >
+                  Collect {formatCurrency(paymentAmount)}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Status Update Modal */}
+        {showStatusModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Update Status</h2>
+                <button onClick={() => setShowStatusModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {(Object.keys(STATUS_CONFIG) as OrderStatus[]).map(status => {
+                  const config = STATUS_CONFIG[status];
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => handleStatusUpdate(selectedOrder.id, status)}
+                      className={clsx(
+                        'w-full p-3 rounded-lg flex items-center gap-3 transition-colors',
+                        selectedOrder.orderStatus === status
+                          ? 'bg-bv-red-50 border-2 border-bv-red-500'
+                          : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                      )}
+                    >
+                      <div className={clsx('w-8 h-8 rounded-full flex items-center justify-center', config.class)}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <span className="font-medium">{config.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Orders List View
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -231,10 +551,14 @@ export function OrdersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
           <p className="text-gray-500">Manage and track all orders</p>
         </div>
+        <button className="btn-primary flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          New Order
+        </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 tablet:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 laptop:grid-cols-5 gap-4">
         <div className="card">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -242,7 +566,7 @@ export function OrdersPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Today's Orders</p>
-              <p className="text-xl font-bold text-gray-900">{todayOrders.length}</p>
+              <p className="text-xl font-bold text-gray-900">{stats.todayOrders}</p>
             </div>
           </div>
         </div>
@@ -253,7 +577,7 @@ export function OrdersPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Today's Sales</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(todaySales)}</p>
+              <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.todaySales)}</p>
             </div>
           </div>
         </div>
@@ -264,18 +588,29 @@ export function OrdersPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Pending Delivery</p>
-              <p className="text-xl font-bold text-yellow-600">{pendingDelivery}</p>
+              <p className="text-xl font-bold text-yellow-600">{stats.pendingDelivery}</p>
             </div>
           </div>
         </div>
         <div className="card">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-red-600" />
+              <IndianRupee className="w-5 h-5 text-red-600" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Pending Payments</p>
-              <p className="text-xl font-bold text-red-600">{formatCurrency(pendingPayments)}</p>
+              <p className="text-xl font-bold text-red-600">{formatCurrency(stats.pendingPayments)}</p>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Receipt className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Avg Order Value</p>
+              <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.avgOrderValue)}</p>
             </div>
           </div>
         </div>
@@ -283,7 +618,7 @@ export function OrdersPage() {
 
       {/* Filters */}
       <div className="card">
-        <div className="flex flex-col tablet:flex-row gap-4">
+        <div className="flex flex-col laptop:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -303,6 +638,17 @@ export function OrdersPage() {
             >
               <option value="ALL">All Status</option>
               {Object.entries(STATUS_CONFIG).map(([status, config]) => (
+                <option key={status} value={status}>{config.label}</option>
+              ))}
+            </select>
+            {/* Payment Filter */}
+            <select
+              value={paymentFilter}
+              onChange={e => setPaymentFilter(e.target.value as PaymentStatus | 'ALL')}
+              className="input-field w-auto"
+            >
+              <option value="ALL">All Payments</option>
+              {Object.entries(PAYMENT_STATUS_CONFIG).map(([status, config]) => (
                 <option key={status} value={status}>{config.label}</option>
               ))}
             </select>
@@ -338,7 +684,8 @@ export function OrdersPage() {
               return (
                 <div
                   key={order.id}
-                  className="p-4 hover:bg-gray-50 transition-colors"
+                  className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => setSelectedOrder(order)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     {/* Order Info */}
@@ -357,20 +704,22 @@ export function OrdersPage() {
                           {order.customerName}
                         </span>
                         <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {order.customerPhone}
+                        </span>
+                        <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {formatDate(order.createdAt)}
                         </span>
-                        {order.hasWorkshopJob && (
-                          <span className="text-purple-600">Workshop: {order.workshopStatus}</span>
-                        )}
                       </div>
                       <div className="mt-2 text-sm text-gray-600">
-                        {order.items.map((item, i) => (
-                          <span key={i}>
+                        {order.items.slice(0, 2).map((item, i) => (
+                          <span key={item.id}>
                             {i > 0 && ', '}
-                            {item.name} × {item.qty}
+                            {item.productName} × {item.quantity}
                           </span>
                         ))}
+                        {order.items.length > 2 && ` +${order.items.length - 2} more`}
                       </div>
                     </div>
 
@@ -381,12 +730,34 @@ export function OrdersPage() {
                         <p className="text-sm text-red-600">Due: {formatCurrency(order.balanceDue)}</p>
                       )}
                       <div className="flex items-center gap-2 mt-2">
-                        <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors" title="View">
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelectedOrder(order); }}
+                          className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors"
+                          title="View"
+                        >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors" title="Print">
+                        <button
+                          onClick={e => { e.stopPropagation(); printInvoice(order); }}
+                          className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors"
+                          title="Print"
+                        >
                           <Printer className="w-4 h-4" />
                         </button>
+                        {order.balanceDue > 0 && (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              setSelectedOrder(order);
+                              setPaymentAmount(order.balanceDue);
+                              setShowPaymentModal(true);
+                            }}
+                            className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                            title="Collect Payment"
+                          >
+                            <IndianRupee className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
