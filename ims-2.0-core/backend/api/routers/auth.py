@@ -241,6 +241,7 @@ async def login(login_request: LoginRequest, request: Request):
     access_token = create_access_token(token_data)
 
     return LoginResponse(
+        success=True,
         access_token=access_token,
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user={
