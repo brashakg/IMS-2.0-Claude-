@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { MockDataProvider } from './context/MockDataContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
@@ -66,8 +67,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <AuthProvider>
-          <BrowserRouter>
-          <Routes>
+          <MockDataProvider>
+            <BrowserRouter>
+            <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
@@ -219,8 +221,9 @@ function App() {
 
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-          </BrowserRouter>
+            </Routes>
+            </BrowserRouter>
+          </MockDataProvider>
         </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
