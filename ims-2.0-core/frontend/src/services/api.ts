@@ -10,7 +10,7 @@ const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
-  baseURL: `${API_BASE_URL}/api/${API_VERSION}`,
+  baseURL: API_BASE_URL ? `${API_BASE_URL}/api/${API_VERSION}` : `/api/${API_VERSION}`,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
