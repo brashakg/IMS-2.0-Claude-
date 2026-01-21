@@ -15,6 +15,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useToast } from '../../context/ToastContext';
 
 interface PendingStock {
   id: string;
@@ -90,6 +91,7 @@ const LOCATIONS = [
 ];
 
 export function StockAcceptance() {
+  const toast = useToast();
   const [pendingItems, setPendingItems] = useState<PendingStock[]>(mockPendingStock);
   const [selectedItem, setSelectedItem] = useState<PendingStock | null>(null);
   const [countInput, setCountInput] = useState('');
@@ -131,8 +133,7 @@ export function StockAcceptance() {
 
   const handlePrintBarcode = (item: PendingStock) => {
     // In production, this would trigger barcode printing
-    console.log('Printing barcode for:', item.sku);
-    alert(`Barcode printed for ${item.productName}`);
+    toast.success(`Barcode printed for ${item.productName}`);
   };
 
   const handleAccept = (item: PendingStock) => {

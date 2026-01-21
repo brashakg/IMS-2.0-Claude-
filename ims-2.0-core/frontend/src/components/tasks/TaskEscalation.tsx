@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { TaskPriority, TASK_PRIORITY_CONFIG } from '../../types';
+import { useToast } from '../../context/ToastContext';
 
 // Escalation Rule Types
 export interface EscalationRule {
@@ -344,6 +345,7 @@ function EscalatedTaskCard({ task }: { task: EscalatedTask }) {
 
 // Main Task Escalation Component
 export function TaskEscalation() {
+  const toast = useToast();
   const [rules, setRules] = useState<EscalationRule[]>(defaultEscalationRules);
   const [escalatedTasks] = useState<EscalatedTask[]>(mockEscalatedTasks);
   const [activeTab, setActiveTab] = useState<'rules' | 'escalated'>('escalated');
@@ -482,7 +484,7 @@ export function TaskEscalation() {
             <EscalationRuleCard
               key={rule.id}
               rule={rule}
-              onEdit={() => console.log('Edit rule:', rule.id)}
+              onEdit={() => toast.info(`Editing escalation rule: ${rule.name}`)}
               onToggle={() => handleToggleRule(rule.id)}
             />
           ))}

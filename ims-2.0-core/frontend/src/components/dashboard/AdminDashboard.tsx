@@ -269,7 +269,7 @@ export function AdminDashboard() {
         approvals={approvals}
         onApprove={handleApprove}
         onReject={handleReject}
-        onViewDetails={(item) => console.log('View details:', item)}
+        onViewDetails={(item) => toast.info(`Viewing ${item.type} approval: ${item.details.description}`)}
       />
 
       {/* Quick Actions */}

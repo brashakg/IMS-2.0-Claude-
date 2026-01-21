@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { TaskPriority, TASK_PRIORITY_CONFIG } from '../../types';
+import { useToast } from '../../context/ToastContext';
 
 // SOP Types
 export interface SOPChecklistItem {
@@ -366,6 +367,7 @@ function SOPTemplateCard({
 
 // Main SOP Templates Component
 export function SOPTemplates() {
+  const toast = useToast();
   const [templates, setTemplates] = useState<SOPTemplate[]>(mockSOPTemplates);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -506,7 +508,7 @@ export function SOPTemplates() {
           <SOPTemplateCard
             key={template.id}
             template={template}
-            onEdit={() => console.log('Edit:', template.id)}
+            onEdit={() => toast.info(`Editing SOP template: ${template.name}`)}
             onDuplicate={() => handleDuplicate(template)}
             onToggleActive={() => handleToggleActive(template.id)}
             onStartNow={() => handleStartNow(template)}

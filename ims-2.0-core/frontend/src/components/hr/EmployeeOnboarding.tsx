@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { UserRole } from '../../types';
+import { useToast } from '../../context/ToastContext';
 
 // Employee Data Structure
 interface EmployeeOnboardingData {
@@ -727,6 +728,7 @@ function DocumentsStep({ data, onChange }: StepProps) {
 
 // Main Component
 export function EmployeeOnboarding() {
+  const toast = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<EmployeeOnboardingData>(initialData);
 
@@ -745,8 +747,7 @@ export function EmployeeOnboarding() {
   };
 
   const handleSubmit = () => {
-    console.log('Submitting employee data:', data);
-    alert('Employee onboarded successfully!');
+    toast.success(`Employee ${data.firstName} ${data.lastName} onboarded successfully!`);
   };
 
   const renderStep = () => {

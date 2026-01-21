@@ -1,9 +1,9 @@
 // ============================================================================
 // IMS 2.0 - Clinical / Eye Tests Page
+// Full-featured clinical module with queue, eye tests, history, and print
 // ============================================================================
-// Comprehensive clinical module with queue, eye tests, history, and print
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   Eye,
   User,
@@ -13,17 +13,18 @@ import {
   Plus,
   Search,
   FileText,
-  Calendar,
   Phone,
-  ChevronRight,
   History,
   Printer,
   X,
+  Trash2,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { EyeTestForm } from '../../components/clinical/EyeTestForm';
 import { PrescriptionHistory } from '../../components/clinical/PrescriptionHistory';
 import { PrescriptionPrint } from '../../components/clinical/PrescriptionPrint';
+import { useMockData } from '../../context/MockDataContext';
+import { useToast } from '../../context/ToastContext';
 
 // Types
 interface QueueItem {
@@ -46,9 +47,10 @@ interface CompletedTest {
   customerId: string;
   customerPhone: string;
   completedAt: string;
-  rightEye: { sphere: number | null; cylinder: number | null; axis: number | null };
-  leftEye: { sphere: number | null; cylinder: number | null; axis: number | null };
+  rightEye: { sphere: number | null; cylinder: number | null; axis: number | null; add?: number | null; pd?: number };
+  leftEye: { sphere: number | null; cylinder: number | null; axis: number | null; add?: number | null; pd?: number };
   optometristName: string;
+  recommendation?: string;
 }
 
 interface PrescriptionRecord {
@@ -67,8 +69,14 @@ interface PrescriptionRecord {
   isExpired: boolean;
 }
 
-// Mock data
-const mockQueue: QueueItem[] = [
+const STATUS_CONFIG = {
+  WAITING: { label: 'Waiting', class: 'bg-yellow-100 text-yellow-600' },
+  IN_PROGRESS: { label: 'In Progress', class: 'bg-blue-100 text-blue-600' },
+  COMPLETED: { label: 'Completed', class: 'bg-green-100 text-green-600' },
+};
+
+// Initial mock data
+const initialQueue: QueueItem[] = [
   {
     id: 'q-001',
     tokenNumber: 'T-001',
@@ -95,54 +103,19 @@ const mockQueue: QueueItem[] = [
     createdAt: '2025-01-21T10:15:00Z',
     hasPreviousRx: false,
   },
-  {
-    id: 'q-003',
-    tokenNumber: 'T-003',
-    patientName: 'Arjun Mehta',
-    customerId: 'cust-003',
-    customerPhone: '9123456789',
-    age: 45,
-    reason: 'Progressive Lenses',
-    status: 'WAITING',
-    waitTime: 8,
-    createdAt: '2025-01-21T10:22:00Z',
-    hasPreviousRx: true,
-  },
-  {
-    id: 'q-004',
-    tokenNumber: 'T-004',
-    patientName: 'Sunita Das',
-    customerId: 'cust-004',
-    customerPhone: '9876512345',
-    age: 52,
-    reason: 'Contact Lens Fitting',
-    status: 'WAITING',
-    waitTime: 3,
-    createdAt: '2025-01-21T10:27:00Z',
-    hasPreviousRx: false,
-  },
 ];
 
-const mockCompletedToday: CompletedTest[] = [
+const initialCompleted: CompletedTest[] = [
   {
     id: 'rx-t001',
     patientName: 'Amit Singh',
     customerId: 'cust-005',
     customerPhone: '9876500001',
     completedAt: '2025-01-21T09:45:00Z',
-    rightEye: { sphere: -1.50, cylinder: -0.50, axis: 90 },
-    leftEye: { sphere: -1.75, cylinder: -0.25, axis: 85 },
+    rightEye: { sphere: -1.50, cylinder: -0.50, axis: 90, pd: 31 },
+    leftEye: { sphere: -1.75, cylinder: -0.25, axis: 85, pd: 31 },
     optometristName: 'Dr. Sharma',
-  },
-  {
-    id: 'rx-t002',
-    patientName: 'Neha Gupta',
-    customerId: 'cust-006',
-    customerPhone: '9876500002',
-    completedAt: '2025-01-21T09:15:00Z',
-    rightEye: { sphere: 0.50, cylinder: null, axis: null },
-    leftEye: { sphere: 0.75, cylinder: -0.25, axis: 180 },
-    optometristName: 'Dr. Sharma',
+    recommendation: 'Single Vision with Anti-Reflective coating',
   },
 ];
 
@@ -161,42 +134,45 @@ const mockPreviousPrescriptions: PrescriptionRecord[] = [
     remarks: 'Recommend annual check-up',
     isExpired: false,
   },
-  {
-    id: 'rx-hist-002',
-    testDate: '2023-03-20',
-    expiryDate: '2024-03-20',
-    optometristName: 'Dr. Patel',
-    source: 'TESTED_AT_STORE',
-    rightEye: { sphere: '-1.00', cylinder: '-0.50', axis: '90', add: '', pd: '31', prism: '', base: '', acuity: '6/9' },
-    leftEye: { sphere: '-1.25', cylinder: '-0.25', axis: '85', add: '', pd: '31', prism: '', base: '', acuity: '6/9' },
-    lensRecommendation: 'Single Vision',
-    coatingRecommendation: 'UV Protection',
-    validityMonths: 12,
-    remarks: '',
-    isExpired: true,
-  },
 ];
 
-const STATUS_CONFIG = {
-  WAITING: { label: 'Waiting', class: 'bg-yellow-100 text-yellow-600' },
-  IN_PROGRESS: { label: 'In Progress', class: 'bg-blue-100 text-blue-600' },
-  COMPLETED: { label: 'Completed', class: 'bg-green-100 text-green-600' },
-};
-
 export function ClinicalPage() {
+  const { customers } = useMockData();
+  const toast = useToast();
+
+  // Queue and completed tests state
+  const [queue, setQueue] = useState<QueueItem[]>(initialQueue);
+  const [completedTests, setCompletedTests] = useState<CompletedTest[]>(initialCompleted);
+  const [tokenCounter, setTokenCounter] = useState(3);
+
   const [activeTab, setActiveTab] = useState<'queue' | 'completed'>('queue');
   const [showTestModal, setShowTestModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [showAddPatientModal, setShowAddPatientModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<QueueItem | null>(null);
   const [selectedTest, setSelectedTest] = useState<CompletedTest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [copiedPrescription, setCopiedPrescription] = useState<PrescriptionRecord | null>(null);
+
+  // Add patient form
+  const [newPatientForm, setNewPatientForm] = useState({
+    customerId: '',
+    patientName: '',
+    phone: '',
+    age: '',
+    reason: 'New Glasses',
+  });
 
   const printRef = useRef<HTMLDivElement>(null);
 
-  const waitingCount = mockQueue.filter(q => q.status === 'WAITING').length;
-  const inProgressCount = mockQueue.filter(q => q.status === 'IN_PROGRESS').length;
-  const completedCount = mockCompletedToday.length;
+  // Stats
+  const stats = useMemo(() => {
+    const waitingCount = queue.filter(q => q.status === 'WAITING').length;
+    const inProgressCount = queue.filter(q => q.status === 'IN_PROGRESS').length;
+    const completedCount = completedTests.length;
+    return { waitingCount, inProgressCount, completedCount };
+  }, [queue, completedTests]);
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('en-IN', {
@@ -210,7 +186,53 @@ export function ClinicalPage() {
     return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
   };
 
+  // Add patient to queue
+  const handleAddPatientToQueue = () => {
+    if (!newPatientForm.patientName || !newPatientForm.phone) {
+      toast.error('Name and phone are required');
+      return;
+    }
+
+    const tokenNum = String(tokenCounter).padStart(3, '0');
+    const newItem: QueueItem = {
+      id: `q-${Date.now()}`,
+      tokenNumber: `T-${tokenNum}`,
+      patientName: newPatientForm.patientName,
+      customerId: newPatientForm.customerId || `temp-${Date.now()}`,
+      customerPhone: newPatientForm.phone,
+      age: parseInt(newPatientForm.age) || 0,
+      reason: newPatientForm.reason,
+      status: 'WAITING',
+      waitTime: 0,
+      createdAt: new Date().toISOString(),
+      hasPreviousRx: false,
+    };
+
+    setQueue(prev => [...prev, newItem]);
+    setTokenCounter(c => c + 1);
+    setShowAddPatientModal(false);
+    setNewPatientForm({ customerId: '', patientName: '', phone: '', age: '', reason: 'New Glasses' });
+    toast.success(`Patient ${newItem.patientName} added to queue (${newItem.tokenNumber})`);
+  };
+
+  // Select existing customer
+  const handleSelectCustomer = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      setNewPatientForm(prev => ({
+        ...prev,
+        customerId: customer.id,
+        patientName: customer.name,
+        phone: customer.phone,
+      }));
+    }
+  };
+
   const handleStartTest = (patient: QueueItem) => {
+    // Mark as in progress
+    setQueue(prev => prev.map(q =>
+      q.id === patient.id ? { ...q, status: 'IN_PROGRESS' as const } : q
+    ));
     setSelectedPatient(patient);
     setShowTestModal(true);
   };
@@ -221,10 +243,51 @@ export function ClinicalPage() {
   };
 
   const handleSavePrescription = (data: any) => {
-    console.log('Saving prescription:', data);
+    if (!selectedPatient) {
+      toast.error('No patient selected');
+      return;
+    }
+
+    // Create completed test record
+    const completedTest: CompletedTest = {
+      id: `rx-${Date.now()}`,
+      patientName: selectedPatient.patientName,
+      customerId: selectedPatient.customerId,
+      customerPhone: selectedPatient.customerPhone,
+      completedAt: new Date().toISOString(),
+      rightEye: {
+        sphere: parseFloat(data.rightEye?.sphere) || null,
+        cylinder: parseFloat(data.rightEye?.cylinder) || null,
+        axis: parseInt(data.rightEye?.axis) || null,
+        add: parseFloat(data.rightEye?.add) || null,
+        pd: parseFloat(data.rightEye?.pd) || 31,
+      },
+      leftEye: {
+        sphere: parseFloat(data.leftEye?.sphere) || null,
+        cylinder: parseFloat(data.leftEye?.cylinder) || null,
+        axis: parseInt(data.leftEye?.axis) || null,
+        add: parseFloat(data.leftEye?.add) || null,
+        pd: parseFloat(data.leftEye?.pd) || 31,
+      },
+      optometristName: data.optometristName || 'Dr. Current User',
+      recommendation: data.lensRecommendation,
+    };
+
+    // Add to completed tests
+    setCompletedTests(prev => [completedTest, ...prev]);
+
+    // Remove from queue
+    setQueue(prev => prev.filter(q => q.id !== selectedPatient.id));
+
     setShowTestModal(false);
     setSelectedPatient(null);
-    // In production, would call API and refresh data
+    setCopiedPrescription(null);
+    toast.success(`Eye test completed for ${selectedPatient.patientName}`);
+  };
+
+  const handleRemoveFromQueue = (patient: QueueItem) => {
+    setQueue(prev => prev.filter(q => q.id !== patient.id));
+    toast.info(`${patient.patientName} removed from queue`);
   };
 
   const handlePrintPrescription = (test: CompletedTest) => {
@@ -257,21 +320,24 @@ export function ClinicalPage() {
         printWindow.print();
       }
     }
+    toast.success('Print dialog opened');
   };
 
   const handleCopyPrescription = (rx: PrescriptionRecord) => {
-    console.log('Copying prescription values:', rx);
+    setCopiedPrescription(rx);
     setShowHistoryModal(false);
-    // Would pre-fill the test form with these values
+    toast.info('Previous prescription values will be pre-filled');
     setShowTestModal(true);
   };
 
   // Filter queue by search
-  const filteredQueue = mockQueue.filter(item =>
-    item.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.customerPhone.includes(searchQuery) ||
-    item.tokenNumber.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredQueue = useMemo(() => {
+    return queue.filter(item =>
+      item.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.customerPhone.includes(searchQuery) ||
+      item.tokenNumber.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [queue, searchQuery]);
 
   return (
     <div className="space-y-4">
@@ -282,14 +348,11 @@ export function ClinicalPage() {
           <p className="text-gray-500">Manage patient queue and eye examinations</p>
         </div>
         <button
-          onClick={() => {
-            setSelectedPatient(null);
-            setShowTestModal(true);
-          }}
+          onClick={() => setShowAddPatientModal(true)}
           className="btn-primary flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
-          New Patient
+          Add to Queue
         </button>
       </div>
 
@@ -302,7 +365,7 @@ export function ClinicalPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Waiting</p>
-              <p className="text-2xl font-bold text-yellow-600">{waitingCount}</p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.waitingCount}</p>
             </div>
           </div>
         </div>
@@ -313,7 +376,7 @@ export function ClinicalPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">In Progress</p>
-              <p className="text-2xl font-bold text-blue-600">{inProgressCount}</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.inProgressCount}</p>
             </div>
           </div>
         </div>
@@ -324,7 +387,7 @@ export function ClinicalPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Completed Today</p>
-              <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.completedCount}</p>
             </div>
           </div>
         </div>
@@ -354,7 +417,7 @@ export function ClinicalPage() {
           )}
         >
           <Clock className="w-4 h-4" />
-          Queue ({waitingCount + inProgressCount})
+          Queue ({stats.waitingCount + stats.inProgressCount})
         </button>
         <button
           onClick={() => setActiveTab('completed')}
@@ -366,7 +429,7 @@ export function ClinicalPage() {
           )}
         >
           <CheckCircle className="w-4 h-4" />
-          Completed Today ({completedCount})
+          Completed Today ({stats.completedCount})
         </button>
       </div>
 
@@ -377,6 +440,12 @@ export function ClinicalPage() {
             <div className="card text-center py-12 text-gray-500">
               <Eye className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No patients in queue</p>
+              <button
+                onClick={() => setShowAddPatientModal(true)}
+                className="mt-4 btn-primary"
+              >
+                Add Patient
+              </button>
             </div>
           ) : (
             filteredQueue.map((item) => {
@@ -419,7 +488,7 @@ export function ClinicalPage() {
                             <Phone className="w-3 h-3" />
                             {item.customerPhone}
                           </span>
-                          <span>Age: {item.age}</span>
+                          {item.age > 0 && <span>Age: {item.age}</span>}
                           <span>{item.reason}</span>
                         </div>
                       </div>
@@ -447,6 +516,15 @@ export function ClinicalPage() {
                           <History className="w-5 h-5" />
                         </button>
                       )}
+
+                      {/* Remove Button */}
+                      <button
+                        onClick={() => handleRemoveFromQueue(item)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Remove from queue"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
 
                       {/* Actions */}
                       {item.status === 'WAITING' && (
@@ -479,14 +557,14 @@ export function ClinicalPage() {
       {/* Completed Tab */}
       {activeTab === 'completed' && (
         <div className="card overflow-hidden">
-          {mockCompletedToday.length === 0 ? (
+          {completedTests.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No tests completed today</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {mockCompletedToday.map(test => (
+              {completedTests.map(test => (
                 <div key={test.id} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -496,14 +574,14 @@ export function ClinicalPage() {
                       <div>
                         <p className="font-medium text-gray-900">{test.patientName}</p>
                         <p className="text-sm text-gray-500">
-                          Completed at {formatTime(test.completedAt)} • by {test.optometristName}
+                          Completed at {formatTime(test.completedAt)} by {test.optometristName}
                         </p>
                       </div>
                     </div>
 
                     {/* Quick Rx Preview */}
                     <div className="flex items-center gap-6">
-                      <div className="text-sm">
+                      <div className="text-sm font-mono">
                         <p className="text-gray-500">R: {formatPower(test.rightEye.sphere)} / {formatPower(test.rightEye.cylinder)}</p>
                         <p className="text-gray-500">L: {formatPower(test.leftEye.sphere)} / {formatPower(test.leftEye.cylinder)}</p>
                       </div>
@@ -515,7 +593,10 @@ export function ClinicalPage() {
                         >
                           <Printer className="w-5 h-5" />
                         </button>
-                        <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors">
+                        <button
+                          className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors"
+                          title="View details"
+                        >
                           <FileText className="w-5 h-5" />
                         </button>
                       </div>
@@ -528,6 +609,90 @@ export function ClinicalPage() {
         </div>
       )}
 
+      {/* Add Patient to Queue Modal */}
+      {showAddPatientModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-bold">Add Patient to Queue</h3>
+              <button onClick={() => setShowAddPatientModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Existing Customer (optional)</label>
+                <select
+                  value={newPatientForm.customerId}
+                  onChange={e => handleSelectCustomer(e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">-- New Patient --</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name *</label>
+                <input
+                  type="text"
+                  value={newPatientForm.patientName}
+                  onChange={e => setNewPatientForm(prev => ({ ...prev, patientName: e.target.value }))}
+                  className="input-field"
+                  placeholder="Enter patient name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                <input
+                  type="tel"
+                  value={newPatientForm.phone}
+                  onChange={e => setNewPatientForm(prev => ({ ...prev, phone: e.target.value }))}
+                  className="input-field"
+                  placeholder="Enter phone number"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                  <input
+                    type="number"
+                    value={newPatientForm.age}
+                    onChange={e => setNewPatientForm(prev => ({ ...prev, age: e.target.value }))}
+                    className="input-field"
+                    placeholder="Age"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                  <select
+                    value={newPatientForm.reason}
+                    onChange={e => setNewPatientForm(prev => ({ ...prev, reason: e.target.value }))}
+                    className="input-field"
+                  >
+                    <option value="New Glasses">New Glasses</option>
+                    <option value="Eye Strain">Eye Strain</option>
+                    <option value="Progressive Lenses">Progressive Lenses</option>
+                    <option value="Contact Lens Fitting">Contact Lens Fitting</option>
+                    <option value="Follow-up">Follow-up</option>
+                    <option value="General Checkup">General Checkup</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button onClick={() => setShowAddPatientModal(false)} className="btn-secondary">Cancel</button>
+                <button onClick={handleAddPatientToQueue} className="btn-primary">Add to Queue</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Eye Test Form Modal */}
       {showTestModal && (
         <EyeTestForm
@@ -537,6 +702,7 @@ export function ClinicalPage() {
           onClose={() => {
             setShowTestModal(false);
             setSelectedPatient(null);
+            setCopiedPrescription(null);
           }}
         />
       )}
@@ -592,8 +758,8 @@ export function ClinicalPage() {
                     sphere: selectedTest.rightEye.sphere?.toString() || '',
                     cylinder: selectedTest.rightEye.cylinder?.toString() || '',
                     axis: selectedTest.rightEye.axis?.toString() || '',
-                    add: '',
-                    pd: '31',
+                    add: selectedTest.rightEye.add?.toString() || '',
+                    pd: selectedTest.rightEye.pd?.toString() || '31',
                     prism: '',
                     base: '',
                     acuity: '6/6',
@@ -602,14 +768,14 @@ export function ClinicalPage() {
                     sphere: selectedTest.leftEye.sphere?.toString() || '',
                     cylinder: selectedTest.leftEye.cylinder?.toString() || '',
                     axis: selectedTest.leftEye.axis?.toString() || '',
-                    add: '',
-                    pd: '31',
+                    add: selectedTest.leftEye.add?.toString() || '',
+                    pd: selectedTest.leftEye.pd?.toString() || '31',
                     prism: '',
                     base: '',
                     acuity: '6/6',
                   }}
                   totalPD="62"
-                  lensRecommendation="Single Vision"
+                  lensRecommendation={selectedTest.recommendation || 'Single Vision'}
                   coatingRecommendation="Anti-Reflective"
                 />
               </div>

@@ -17,6 +17,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { TaskSummary } from './TaskSummary';
 import { TaskPriority } from '../../types';
 import clsx from 'clsx';
@@ -132,6 +133,7 @@ function GSTStatusPanel({ statuses }: { statuses: GSTStatus[] }) {
 export function AccountantDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Mock data
   const stats = {
@@ -265,7 +267,7 @@ export function AccountantDashboard() {
           <QuickAction label="Reports" icon={TrendingUp} onClick={() => navigate('/reports')} />
           <QuickAction label="Invoices" icon={FileText} onClick={() => navigate('/orders')} />
           <QuickAction label="Payments" icon={CreditCard} onClick={() => navigate('/reports')} />
-          <QuickAction label="Export Data" icon={Download} onClick={() => console.log('Export')} />
+          <QuickAction label="Export Data" icon={Download} onClick={() => toast.success('Exporting data. Check your downloads shortly.')} />
           <QuickAction label="GST Reports" icon={Receipt} onClick={() => navigate('/reports')} />
         </div>
       </div>
