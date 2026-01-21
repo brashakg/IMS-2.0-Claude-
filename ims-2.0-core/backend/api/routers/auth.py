@@ -195,7 +195,8 @@ async def login(login_request: LoginRequest, request: Request):
 
     if is_store_staff and active_store and login_request.latitude and login_request.longitude:
         # Get store location
-        store = Database.get_collection("stores").find_one({"store_id": active_store})
+        db = get_sync_db()
+        store = db["stores"].find_one({"store_id": active_store})
 
         if store and store.get("latitude") and store.get("longitude"):
             store_lat = store["latitude"]
