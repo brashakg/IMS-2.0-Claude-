@@ -7,9 +7,20 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
+
+// Page imports
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { POSPage } from './pages/pos/POSPage';
+import { CustomersPage } from './pages/customers/CustomersPage';
+import { InventoryPage } from './pages/inventory/InventoryPage';
+import { OrdersPage } from './pages/orders/OrdersPage';
+import { ClinicalPage } from './pages/clinical/ClinicalPage';
+import { WorkshopPage } from './pages/workshop/WorkshopPage';
+import { TasksPage } from './pages/tasks/TasksPage';
+import { HRPage } from './pages/hr/HRPage';
+import { ReportsPage } from './pages/reports/ReportsPage';
+import { SettingsPage } from './pages/settings/SettingsPage';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -20,14 +31,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-// Placeholder pages (to be implemented)
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="card">
-    <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
-    <p className="text-gray-500">This page is under development.</p>
-  </div>
-);
 
 // Unauthorized page
 const UnauthorizedPage = () => (
@@ -93,7 +96,16 @@ function App() {
               />
 
               {/* Customers */}
-              <Route path="customers" element={<PlaceholderPage title="Customers" />} />
+              <Route
+                path="customers"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST', 'SALES_CASHIER', 'SALES_STAFF']}
+                  >
+                    <CustomersPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Inventory */}
               <Route
@@ -102,7 +114,7 @@ function App() {
                   <ProtectedRoute
                     allowedRoles={['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'CATALOG_MANAGER', 'WORKSHOP_STAFF']}
                   >
-                    <PlaceholderPage title="Inventory" />
+                    <InventoryPage />
                   </ProtectedRoute>
                 }
               />
@@ -114,7 +126,7 @@ function App() {
                   <ProtectedRoute
                     allowedRoles={['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'SALES_CASHIER']}
                   >
-                    <PlaceholderPage title="Orders" />
+                    <OrdersPage />
                   </ProtectedRoute>
                 }
               />
@@ -126,7 +138,7 @@ function App() {
                   <ProtectedRoute
                     allowedRoles={['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST']}
                   >
-                    <PlaceholderPage title="Eye Tests & Prescriptions" />
+                    <ClinicalPage />
                   </ProtectedRoute>
                 }
               />
@@ -138,13 +150,13 @@ function App() {
                   <ProtectedRoute
                     allowedRoles={['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'WORKSHOP_STAFF']}
                   >
-                    <PlaceholderPage title="Workshop" />
+                    <WorkshopPage />
                   </ProtectedRoute>
                 }
               />
 
               {/* Tasks */}
-              <Route path="tasks" element={<PlaceholderPage title="Tasks" />} />
+              <Route path="tasks" element={<TasksPage />} />
 
               {/* HR */}
               <Route
@@ -153,7 +165,7 @@ function App() {
                   <ProtectedRoute
                     allowedRoles={['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ACCOUNTANT']}
                   >
-                    <PlaceholderPage title="HR Management" />
+                    <HRPage />
                   </ProtectedRoute>
                 }
               />
@@ -165,7 +177,7 @@ function App() {
                   <ProtectedRoute
                     allowedRoles={['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ACCOUNTANT']}
                   >
-                    <PlaceholderPage title="Reports" />
+                    <ReportsPage />
                   </ProtectedRoute>
                 }
               />
@@ -175,7 +187,7 @@ function App() {
                 path="settings"
                 element={
                   <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
-                    <PlaceholderPage title="Settings" />
+                    <SettingsPage />
                   </ProtectedRoute>
                 }
               />
