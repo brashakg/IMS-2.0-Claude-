@@ -268,6 +268,16 @@ export interface Order {
   deliveredAt?: string;
 }
 
+// Cart Item for POS (extends OrderItem with additional UI fields)
+export interface CartItem extends Omit<OrderItem, 'id'> {
+  id: string;
+  category: ProductCategory;
+  requiresPrescription: boolean;
+  prescriptionLinked: boolean;
+  stockId?: string;
+  barcode?: string;
+}
+
 // ============================================================================
 // Workshop Types
 // ============================================================================

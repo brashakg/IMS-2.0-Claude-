@@ -14,7 +14,7 @@ import { PrescriptionModal } from '../../components/pos/PrescriptionModal';
 import { PaymentModal } from '../../components/pos/PaymentModal';
 import { DiscountModal } from '../../components/pos/DiscountModal';
 import { OrderSummary } from '../../components/pos/OrderSummary';
-import type { Customer, Patient, Prescription, OrderItem, Payment, ProductCategory } from '../../types';
+import type { Customer, Patient, Prescription, Payment, ProductCategory, CartItem } from '../../types';
 import { User, ShoppingCart, CreditCard, Percent, FileText, X, AlertCircle } from 'lucide-react';
 
 // ============================================================================
@@ -37,15 +37,6 @@ interface POSState {
 
   // UI State
   step: 'customer' | 'products' | 'payment' | 'complete';
-}
-
-export interface CartItem extends Omit<OrderItem, 'id'> {
-  id: string;
-  category: ProductCategory;
-  requiresPrescription: boolean;
-  prescriptionLinked: boolean;
-  stockId?: string;
-  barcode?: string;
 }
 
 // Categories that require prescription

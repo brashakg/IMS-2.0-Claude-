@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Trash2, Plus, Minus, Percent, AlertTriangle, FileText } from 'lucide-react';
-import type { CartItem } from '../../pages/pos/POSPage';
+import type { CartItem } from '../../types';
 import clsx from 'clsx';
 
 interface CartProps {

@@ -25,11 +25,13 @@ import {
   Bell,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { TaskPriority, TASK_PRIORITY_CONFIG } from '../../types';
+import { TaskPriority, TaskStatus, TASK_PRIORITY_CONFIG } from '../../types';
 
 // Task Types
 export type TaskType = 'SYSTEM' | 'MANUAL' | 'SOP' | 'ESCALATED';
-export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE' | 'ESCALATED';
+
+// Extended status for UI filtering (OVERDUE is computed, not stored)
+export type TaskFilterStatus = TaskStatus | 'OVERDUE';
 
 export interface Task {
   id: string;
@@ -354,7 +356,7 @@ export function TaskList({
 }: TaskListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'ALL'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<TaskFilterStatus | 'ALL'>('ALL');
   const [typeFilter, setTypeFilter] = useState<TaskType | 'ALL'>('ALL');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
@@ -449,7 +451,7 @@ export function TaskList({
 
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as TaskStatus | 'ALL')}
+              onChange={(e) => setStatusFilter(e.target.value as TaskFilterStatus | 'ALL')}
               className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-bv-red-500"
             >
               <option value="ALL">All Status</option>

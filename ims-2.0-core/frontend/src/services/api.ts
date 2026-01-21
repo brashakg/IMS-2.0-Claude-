@@ -816,4 +816,7 @@ export const printApi = {
   },
 };
 
+// Named export alias for components using apiClient
+export { api as apiClient };
+
 export default api;
