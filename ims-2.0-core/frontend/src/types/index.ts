@@ -172,26 +172,31 @@ export interface Patient {
 // ============================================================================
 
 export interface EyePower {
-  sph?: number;
-  cyl?: number;
-  axis?: number;
-  add?: number;
-  pd?: number;
+  sphere: number;
+  cylinder: number | null;
+  axis: number | null;
+  add: number | null;
+  pd: number;
+  va?: string;
 }
 
 export interface Prescription {
   id: string;
   patientId: string;
-  prescriptionDate: string;
-  rightEye: EyePower;
-  leftEye: EyePower;
-  remarks?: string;
+  customerId: string;
+  storeId: string;
   optometristId?: string;
   optometristName?: string;
-  isExternal: boolean;
+  testDate: string;
+  rightEye: EyePower;
+  leftEye: EyePower;
+  recommendation?: string;
+  status: 'PENDING' | 'COMPLETED' | 'EXTERNAL';
+  isExternal?: boolean;
   externalSource?: string;
-  validityMonths: number;
-  isActive: boolean;
+  validityMonths?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================================
@@ -208,7 +213,7 @@ export type OrderStatus =
 
 export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID';
 
-export type PaymentMethod =
+export type PaymentMode =
   | 'CASH'
   | 'UPI'
   | 'CARD'
@@ -233,7 +238,7 @@ export interface OrderItem {
 
 export interface Payment {
   id: string;
-  method: PaymentMethod;
+  mode: PaymentMode;
   amount: number;
   reference?: string;
   paidAt: string;

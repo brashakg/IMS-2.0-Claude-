@@ -9,6 +9,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { LoginPage } from './pages/auth/LoginPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
+import { POSPage } from './pages/pos/POSPage';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -86,7 +87,7 @@ function App() {
                   <ProtectedRoute
                     allowedRoles={['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST', 'SALES_CASHIER', 'SALES_STAFF']}
                   >
-                    <PlaceholderPage title="Point of Sale" />
+                    <POSPage />
                   </ProtectedRoute>
                 }
               />
