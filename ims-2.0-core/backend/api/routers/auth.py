@@ -65,6 +65,7 @@ class LoginRequest(BaseModel):
     longitude: Optional[float] = None
 
 class LoginResponse(BaseModel):
+    success: bool = True
     access_token: str
     token_type: str = "bearer"
     expires_in: int
