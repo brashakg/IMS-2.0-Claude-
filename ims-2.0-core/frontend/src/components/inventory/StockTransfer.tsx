@@ -152,7 +152,7 @@ function TransferCard({
               <tr>
                 <th className="px-2 py-1 text-left text-gray-500">Product</th>
                 <th className="px-2 py-1 text-center text-gray-500">Requested</th>
-                {transfer.approvedQty !== undefined && (
+                {transfer.items.some(item => item.approvedQty !== undefined) && (
                   <th className="px-2 py-1 text-center text-gray-500">Approved</th>
                 )}
                 {transfer.status === 'RECEIVED' && (

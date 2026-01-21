@@ -23,8 +23,8 @@ import {
   FileText,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { TaskPriority, TASK_PRIORITY_CONFIG } from '../../types';
-import { Task, TaskStatus, TaskType } from './TaskList';
+import { TaskPriority, TaskStatus, TASK_PRIORITY_CONFIG } from '../../types';
+import { Task, TaskType } from './TaskList';
 
 // Extended Task with additional fields
 export interface TaskWithDetails extends Task {
@@ -270,7 +270,8 @@ export function TaskDetails({ task, onClose, onUpdate, canRate }: TaskDetailsPro
               editedTask.status === 'PENDING' && 'bg-gray-100 text-gray-700',
               editedTask.status === 'IN_PROGRESS' && 'bg-blue-100 text-blue-700',
               editedTask.status === 'COMPLETED' && 'bg-green-100 text-green-700',
-              editedTask.status === 'OVERDUE' && 'bg-red-100 text-red-700'
+              editedTask.status === 'ESCALATED' && 'bg-red-100 text-red-700',
+              editedTask.status === 'CANCELLED' && 'bg-gray-200 text-gray-500'
             )}>
               {editedTask.status.replace('_', ' ')}
             </span>
@@ -485,7 +486,7 @@ export function TaskDetails({ task, onClose, onUpdate, canRate }: TaskDetailsPro
                 <div>
                   <p className="text-sm text-gray-600 mb-3">Rate this task's completion (1-10):</p>
                   <StarRating
-                    value={editedTask.rating?.score || 0}
+                    value={0}
                     onChange={handleRatingChange}
                   />
                   <textarea

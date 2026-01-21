@@ -1,5 +1,42 @@
 @import "tailwindcss";
 
+/* Define custom theme colors for Tailwind CSS 4.x */
+@theme {
+  /* Better Vision Brand Colors */
+  --color-bv-red-50: #fef2f2;
+  --color-bv-red-100: #fee2e2;
+  --color-bv-red-200: #fecaca;
+  --color-bv-red-300: #fca5a5;
+  --color-bv-red-400: #f87171;
+  --color-bv-red-500: #ef4444;
+  --color-bv-red-600: #CD201A;
+  --color-bv-red-700: #b91c1c;
+  --color-bv-red-800: #991b1b;
+  --color-bv-red-900: #7f1d1d;
+  --color-bv-red-950: #450a0a;
+
+  /* WizOpt Brand Colors (Teal) */
+  --color-wz-teal-50: #f0fdfa;
+  --color-wz-teal-100: #ccfbf1;
+  --color-wz-teal-200: #99f6e4;
+  --color-wz-teal-300: #5eead4;
+  --color-wz-teal-400: #2dd4bf;
+  --color-wz-teal-500: #14b8a6;
+  --color-wz-teal-600: #0d9488;
+  --color-wz-teal-700: #0f766e;
+  --color-wz-teal-800: #115e59;
+  --color-wz-teal-900: #134e4a;
+  --color-wz-teal-950: #042f2e;
+
+  /* Custom breakpoints */
+  --breakpoint-tablet: 768px;
+  --breakpoint-laptop: 1024px;
+  --breakpoint-desktop: 1280px;
+
+  /* Custom font family */
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
 /* Custom font imports */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -64,19 +101,19 @@
   }
 
   .badge-success {
-    @apply badge bg-green-100 text-green-800;
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800;
   }
 
   .badge-warning {
-    @apply badge bg-yellow-100 text-yellow-800;
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800;
   }
 
   .badge-error {
-    @apply badge bg-red-100 text-red-800;
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800;
   }
 
   .badge-info {
-    @apply badge bg-blue-100 text-blue-800;
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800;
   }
 
   /* Table styles */
@@ -126,9 +163,9 @@
 
 /* Brand-specific overrides */
 [data-brand="wizopt"] {
-  --color-primary: theme('colors.wz-teal.600');
-  --color-primary-hover: theme('colors.wz-teal.700');
-  --color-primary-light: theme('colors.wz-teal.50');
+  --color-primary: var(--color-wz-teal-600);
+  --color-primary-hover: var(--color-wz-teal-700);
+  --color-primary-light: var(--color-wz-teal-50);
 }
 
 [data-brand="wizopt"] .btn-primary {

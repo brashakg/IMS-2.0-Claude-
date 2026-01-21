@@ -387,11 +387,11 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
       const insights = response.insights || {};
       const topPerformers = insights.top_performers || [];
       const improvementAreas = insights.improvement_areas || [];
-      const allStaff = [...topPerformers, ...improvementAreas].map((s: any) => ({
+      const allStaff: StaffPerformanceInsight[] = [...topPerformers, ...improvementAreas].map((s: any) => ({
         employee_id: s.staff_id || s.staffId,
         employee_name: s.name,
         performance_score: s.metrics?.sales_this_month ? Math.min(100, Math.round(s.metrics.conversion_rate || 75)) : 75,
-        trend: s.metrics?.conversion_rate > 70 ? 'improving' : s.areas ? 'declining' : 'stable',
+        trend: (s.metrics?.conversion_rate > 70 ? 'improving' : s.areas ? 'declining' : 'stable') as 'improving' | 'stable' | 'declining',
         strengths: s.strengths || [],
         areas_for_improvement: s.areas || [],
         recommended_training: s.recommended_training || s.recommendedTraining || []

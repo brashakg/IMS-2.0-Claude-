@@ -23,6 +23,7 @@ import {
   ArrowUpRight,
   Timer,
   Bell,
+  XCircle,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { TaskPriority, TaskStatus, TASK_PRIORITY_CONFIG } from '../../types';
@@ -115,20 +116,20 @@ function TypeBadge({ type }: { type: TaskType }) {
 
 // Status Badge
 function StatusBadge({ status }: { status: TaskStatus }) {
-  const styles = {
+  const styles: Record<TaskStatus, string> = {
     PENDING: 'bg-gray-100 text-gray-700',
     IN_PROGRESS: 'bg-blue-100 text-blue-700',
     COMPLETED: 'bg-green-100 text-green-700',
-    OVERDUE: 'bg-red-100 text-red-700',
     ESCALATED: 'bg-orange-100 text-orange-700',
+    CANCELLED: 'bg-gray-200 text-gray-500',
   };
 
-  const icons = {
+  const icons: Record<TaskStatus, React.ReactNode> = {
     PENDING: <Circle className="w-3 h-3" />,
     IN_PROGRESS: <Play className="w-3 h-3" />,
     COMPLETED: <CheckCircle className="w-3 h-3" />,
-    OVERDUE: <AlertTriangle className="w-3 h-3" />,
     ESCALATED: <ArrowUpRight className="w-3 h-3" />,
+    CANCELLED: <XCircle className="w-3 h-3" />,
   };
 
   return (

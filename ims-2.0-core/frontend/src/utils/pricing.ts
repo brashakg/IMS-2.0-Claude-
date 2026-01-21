@@ -4,13 +4,18 @@
 // Implements NON-NEGOTIABLE pricing rules from SYSTEM_INTENT.md
 // Control > Convenience - All rules enforced strictly
 
-import {
+import type {
   UserRole,
   ProductCategory,
   DiscountCategory,
+} from '../types';
+import {
   CATEGORY_DISCOUNT_CAPS,
   LUXURY_BRAND_CAPS,
 } from '../types';
+
+// Re-export for components that import from this module
+export { CATEGORY_DISCOUNT_CAPS, LUXURY_BRAND_CAPS };
 
 // Role-based discount caps (from SYSTEM_INTENT.md)
 export const ROLE_DISCOUNT_CAPS: Record<UserRole, number> = {

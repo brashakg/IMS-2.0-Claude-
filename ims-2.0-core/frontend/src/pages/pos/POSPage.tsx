@@ -117,6 +117,7 @@ export function POSPage() {
     id: string;
     name: string;
     sku: string;
+    brand?: string;
     category: ProductCategory;
     mrp: number;
     offerPrice: number;
@@ -131,9 +132,12 @@ export function POSPage() {
         productId: product.id,
         productName: product.name,
         sku: product.sku,
+        brand: product.brand || '',
         category: product.category,
         quantity: 1,
         unitPrice: product.offerPrice,
+        mrp: product.mrp,
+        offerPrice: product.offerPrice,
         discountPercent: 0,
         discountAmount: 0,
         finalPrice: product.offerPrice,
@@ -153,9 +157,12 @@ export function POSPage() {
       productId: product.id,
       productName: product.name,
       sku: product.sku,
+      brand: product.brand || '',
       category: product.category,
       quantity: 1,
       unitPrice: product.offerPrice,
+      mrp: product.mrp,
+      offerPrice: product.offerPrice,
       discountPercent: 0,
       discountAmount: 0,
       finalPrice: product.offerPrice,
@@ -528,6 +535,7 @@ export function POSPage() {
       {showDiscountModal && selectedItemForDiscount && (
         <DiscountModal
           item={state.items.find(i => i.id === selectedItemForDiscount)!}
+          userRole={user?.activeRole || 'SALES_STAFF'}
           maxDiscountPercent={user?.discountCap || 10}
           onApply={(percent, amount) => handleApplyDiscount(selectedItemForDiscount, percent, amount)}
           onClose={() => {

@@ -3,7 +3,8 @@
 // ============================================================================
 
 export { TaskList } from './TaskList';
-export type { Task, TaskType, TaskStatus } from './TaskList';
+export type { Task, TaskType, TaskFilterStatus } from './TaskList';
+export type { TaskStatus } from '../../types';
 
 export { TaskDetails } from './TaskDetails';
 export type { TaskWithDetails, TaskNote, TaskRating, ChecklistItem } from './TaskDetails';

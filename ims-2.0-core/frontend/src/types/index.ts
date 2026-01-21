@@ -272,6 +272,9 @@ export interface Order {
 export interface CartItem extends Omit<OrderItem, 'id'> {
   id: string;
   category: ProductCategory;
+  brand: string;
+  mrp: number;
+  offerPrice: number;
   requiresPrescription: boolean;
   prescriptionLinked: boolean;
   stockId?: string;
@@ -407,12 +410,12 @@ export type TaskPriority = 'P0' | 'P1' | 'P2' | 'P3' | 'P4';
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'ESCALATED' | 'CANCELLED';
 export type TaskType = 'FOLLOW_UP' | 'CALLBACK' | 'DELIVERY' | 'REMINDER' | 'STOCK_COUNT' | 'ESCALATION' | 'SYSTEM' | 'OTHER';
 
-export const TASK_PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string; bgColor: string; description: string }> = {
-  P0: { label: 'P0 - Critical', color: 'text-red-900', bgColor: 'bg-red-900', description: 'Business Risk - Immediate action required' },
-  P1: { label: 'P1 - Urgent', color: 'text-red-600', bgColor: 'bg-red-600', description: 'Urgent - Same day resolution' },
-  P2: { label: 'P2 - Important', color: 'text-orange-500', bgColor: 'bg-orange-500', description: 'Important - Within 24 hours' },
-  P3: { label: 'P3 - Normal', color: 'text-yellow-500', bgColor: 'bg-yellow-500', description: 'Normal - Within 48 hours' },
-  P4: { label: 'P4 - Low', color: 'text-blue-500', bgColor: 'bg-blue-500', description: 'Informational - When time permits' },
+export const TASK_PRIORITY_CONFIG: Record<TaskPriority, { label: string; color: string; bgColor: string; textColor: string; description: string }> = {
+  P0: { label: 'P0 - Critical', color: 'text-red-900', bgColor: 'bg-red-900', textColor: 'text-white', description: 'Business Risk - Immediate action required' },
+  P1: { label: 'P1 - Urgent', color: 'text-red-600', bgColor: 'bg-red-600', textColor: 'text-white', description: 'Urgent - Same day resolution' },
+  P2: { label: 'P2 - Important', color: 'text-orange-500', bgColor: 'bg-orange-500', textColor: 'text-white', description: 'Important - Within 24 hours' },
+  P3: { label: 'P3 - Normal', color: 'text-yellow-500', bgColor: 'bg-yellow-500', textColor: 'text-black', description: 'Normal - Within 48 hours' },
+  P4: { label: 'P4 - Low', color: 'text-blue-500', bgColor: 'bg-blue-500', textColor: 'text-white', description: 'Informational - When time permits' },
 };
 
 export interface Task {
