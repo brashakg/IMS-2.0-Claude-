@@ -159,8 +159,10 @@ async def login(login_request: LoginRequest, request: Request):
     """
     repo = get_user_repository()
 
-    # Lookup user by username
+    # Lookup user by username or email
     user = repo.find_by_username(login_request.username)
+    if not user:
+        user = repo.find_by_email(login_request.username)
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
