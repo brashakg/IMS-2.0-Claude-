@@ -14,7 +14,7 @@ import os
 from math import radians, cos, sin, asin, sqrt
 
 from ..database import Database
-from ...database.repositories.user_repository import UserRepository
+from database.repositories.user_repository import UserRepository
 from ..middleware import limiter
 
 router = APIRouter()
