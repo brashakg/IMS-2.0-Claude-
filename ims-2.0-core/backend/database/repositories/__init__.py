@@ -16,6 +16,8 @@ from .expense_repository import ExpenseRepository, AdvanceRepository
 from .audit_repository import AuditRepository, NotificationRepository
 from .hr_repository import AttendanceRepository, LeaveRepository, PayrollRepository
 from .workshop_repository import WorkshopJobRepository
+from .approval_repository import ApprovalRepository
+from .payment_repository import PaymentRepository
 
 __all__ = [
     # Base
@@ -54,5 +56,11 @@ __all__ = [
     'PayrollRepository',
     
     # Workshop
-    'WorkshopJobRepository'
+    'WorkshopJobRepository',
+
+    # Approvals
+    'ApprovalRepository',
+
+    # Payments
+    'PaymentRepository'
 ]

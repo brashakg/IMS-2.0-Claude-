@@ -126,3 +126,74 @@ class TaskRepository(BaseRepository):
         if user_id:
             filter["assigned_to"] = user_id
         return self.count(filter)
+
+    # =========================================================================
+    # Escalation queries
+    # =========================================================================
+
+    def find_tasks_needing_escalation(self, priority: str = None) -> List[Dict]:
+        """
+        Find tasks that need escalation based on priority and time
+
+        Escalation Rules (from SYSTEM_INTENT.md):
+        - P0: Escalate after 4 hours
+        - P1: Escalate after 24 hours
+        - P2: Escalate after 3 days (72 hours)
+        - P3+: No auto-escalation
+        """
+        now = datetime.now()
+
+        # Priority-based escalation times (in hours)
+        escalation_times = {
+            "P0": 4,
+            "P1": 24,
+            "P2": 72
+        }
+
+        # Build query for tasks that need escalation
+        query_conditions = []
+
+        for pri, hours in escalation_times.items():
+            if priority and pri != priority:
+                continue
+
+            escalation_threshold = now - timedelta(hours=hours)
+
+            query_conditions.append({
+                "priority": pri,
+                "created_at": {"$lt": escalation_threshold}
+            })
+
+        if not query_conditions:
+            return []
+
+        filter = {
+            "$or": query_conditions,
+            "status": {"$in": ["OPEN", "IN_PROGRESS", "ESCALATED"]},
+            "$or": [
+                {"escalation_level": {"$exists": False}},
+                {"escalation_level": {"$lt": 3}}  # Max 3 escalation levels
+            ]
+        }
+
+        return self.find_many(filter, sort=[("priority", 1), ("created_at", 1)])
+
+    def find_tasks_by_escalation_level(self, level: int, store_id: str = None) -> List[Dict]:
+        """Find tasks at a specific escalation level"""
+        filter = {"escalation_level": level}
+
+        if store_id:
+            filter["store_id"] = store_id
+
+        return self.find_many(filter, sort=[("escalated_at", -1)])
+
+    def record_escalation(self, task_id: str, escalate_to: str, level: int,
+                         reason: str = None) -> bool:
+        """Record task escalation"""
+        return self.update(task_id, {
+            "status": "ESCALATED",
+            "escalated_to": escalate_to,
+            "escalated_at": datetime.now(),
+            "escalation_level": level,
+            "escalation_reason": reason
+        })

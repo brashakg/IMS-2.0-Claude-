@@ -46,7 +46,9 @@ from .routers import (
     reports_router,
     settings_router,
     integrations_router,
-    ai_router
+    ai_router,
+    approvals_router,
+    payments_router
 )
 
 # Track startup time
@@ -229,6 +231,8 @@ app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"])
 app.include_router(integrations_router, prefix="/api/v1/integrations", tags=["Integrations"])
 app.include_router(ai_router, prefix="/api/v1/ai", tags=["AI Intelligence"])
+app.include_router(approvals_router, prefix="/api/v1/approvals", tags=["Approvals"])
+app.include_router(payments_router, prefix="/api/v1/payments", tags=["Payments"])
 
 
 if __name__ == "__main__":

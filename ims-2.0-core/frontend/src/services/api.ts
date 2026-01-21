@@ -1059,6 +1059,72 @@ export const aiApi = {
   },
 };
 
+// ============================================================================
+// Payment API (Razorpay Integration)
+// ============================================================================
+
+export const paymentApi = {
+  createPaymentOrder: async (data: {
+    orderId: string;
+    amount: number;
+    customerName?: string;
+    customerEmail?: string;
+    customerContact?: string;
+    notes?: Record<string, unknown>;
+  }) => {
+    const response = await api.post('/payments/razorpay/create-order', {
+      order_id: data.orderId,
+      amount: data.amount,
+      customer_name: data.customerName,
+      customer_email: data.customerEmail,
+      customer_contact: data.customerContact,
+      notes: data.notes,
+    });
+    return response.data;
+  },
+
+  verifyPayment: async (data: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+    orderId: string;
+  }) => {
+    const response = await api.post('/payments/razorpay/verify', {
+      razorpay_order_id: data.razorpayOrderId,
+      razorpay_payment_id: data.razorpayPaymentId,
+      razorpay_signature: data.razorpaySignature,
+      order_id: data.orderId,
+    });
+    return response.data;
+  },
+
+  getPaymentStatus: async (paymentId: string) => {
+    const response = await api.get(`/payments/status/${paymentId}`);
+    return response.data;
+  },
+
+  processRefund: async (data: {
+    paymentId: string;
+    amount?: number;
+    reason: string;
+  }) => {
+    const response = await api.post('/payments/razorpay/refund', {
+      payment_id: data.paymentId,
+      amount: data.amount,
+      reason: data.reason,
+    });
+    return response.data;
+  },
+
+  getPaymentAnalytics: async (params?: {
+    fromDate?: string;
+    toDate?: string;
+  }) => {
+    const response = await api.get('/payments/analytics/summary', { params });
+    return response.data;
+  },
+};
+
 // Named export alias for components using apiClient
 export { api as apiClient };
 
