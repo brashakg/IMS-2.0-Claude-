@@ -3,7 +3,7 @@
 // Full-featured order management with MockDataContext integration
 // ============================================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search,
   FileText,
@@ -33,9 +33,11 @@ import {
   Trash2,
   Plus,
   ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import type { OrderStatus, PaymentStatus, PaymentMode, Order } from '../../types';
-import { useMockData } from '../../context/MockDataContext';
+import { orderApi, customerApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
@@ -63,9 +65,15 @@ const PAYMENT_MODES: { value: PaymentMode; label: string }[] = [
 ];
 
 export function OrdersPage() {
-  const { orders, updateOrderStatus, addPaymentToOrder, getCustomerById } = useMockData();
+  const { user } = useAuth();
   const toast = useToast();
 
+  // Data state
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'ALL'>('ALL');
@@ -78,6 +86,36 @@ export function OrdersPage() {
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
   const [paymentReference, setPaymentReference] = useState('');
+
+  // Fetch orders from API
+  const fetchOrders = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      const params: any = {};
+
+      if (user?.activeStoreId) {
+        params.storeId = user.activeStoreId;
+      }
+
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+
+      const fetchedOrders = await orderApi.getOrders(params);
+      setOrders(fetchedOrders);
+    } catch (err) {
+      toast.error('Failed to fetch orders');
+      console.error('Error fetching orders:', err);
+    } finally {
+      setIsRefreshing(false);
+      setIsLoading(false);
+    }
+  }, [user?.activeStoreId, statusFilter, toast]);
+
+  // Load orders on mount and when filters change
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   // Filter orders
   const filteredOrders = useMemo(() => {
@@ -141,14 +179,30 @@ export function OrdersPage() {
   }, [orders]);
 
   // Handle status update
-  const handleStatusUpdate = (orderId: string, newStatus: OrderStatus) => {
-    updateOrderStatus(orderId, newStatus);
-    toast.success(`Order status updated to ${STATUS_CONFIG[newStatus].label}`);
-    setShowStatusModal(false);
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
+    try {
+      // Use appropriate API endpoint based on status
+      if (newStatus === 'CONFIRMED') {
+        await orderApi.confirmOrder(orderId);
+      } else if (newStatus === 'DELIVERED') {
+        await orderApi.deliverOrder(orderId);
+      } else if (newStatus === 'CANCELLED') {
+        await orderApi.cancelOrder(orderId, 'Cancelled by user');
+      }
+
+      toast.success(`Order status updated to ${STATUS_CONFIG[newStatus].label}`);
+      setShowStatusModal(false);
+
+      // Refresh orders list
+      await fetchOrders();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update order status';
+      toast.error(errorMessage);
+    }
   };
 
   // Handle payment collection
-  const handleCollectPayment = () => {
+  const handleCollectPayment = async () => {
     if (!selectedOrder || paymentAmount <= 0) return;
 
     if (paymentAmount > selectedOrder.balanceDue) {
@@ -156,20 +210,26 @@ export function OrdersPage() {
       return;
     }
 
-    addPaymentToOrder(selectedOrder.id, {
-      mode: paymentMode,
-      amount: paymentAmount,
-      reference: paymentReference || undefined,
-    });
+    try {
+      await orderApi.addPayment(selectedOrder.id, {
+        mode: paymentMode,
+        amount: paymentAmount,
+        reference: paymentReference || undefined,
+      });
 
-    toast.success(`Payment of ${formatCurrency(paymentAmount)} collected successfully`);
-    setShowPaymentModal(false);
-    setPaymentAmount(0);
-    setPaymentReference('');
+      toast.success(`Payment of ${formatCurrency(paymentAmount)} collected successfully`);
+      setShowPaymentModal(false);
+      setPaymentAmount(0);
+      setPaymentReference('');
 
-    // Refresh selected order
-    const updatedOrder = orders.find(o => o.id === selectedOrder.id);
-    if (updatedOrder) setSelectedOrder(updatedOrder);
+      // Refresh orders list and selected order
+      await fetchOrders();
+      const updatedOrder = orders.find(o => o.id === selectedOrder.id);
+      if (updatedOrder) setSelectedOrder(updatedOrder);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add payment';
+      toast.error(errorMessage);
+    }
   };
 
   // Send WhatsApp notification
@@ -669,7 +729,12 @@ export function OrdersPage() {
 
       {/* Orders List */}
       <div className="card overflow-hidden">
-        {filteredOrders.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 mx-auto mb-2 text-bv-red-600 animate-spin" />
+            <p className="text-gray-500">Loading orders...</p>
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p>No orders found</p>
