@@ -4,8 +4,9 @@
 // Inline payment collection matching Emergent design - Cash, Card, UPI, Credit
 
 import { useState, useCallback, useEffect } from 'react';
-import { Banknote, CreditCard, Smartphone, UserCheck, Calculator, AlertCircle } from 'lucide-react';
+import { Banknote, CreditCard, Smartphone, UserCheck, Calculator, AlertCircle, Globe } from 'lucide-react';
 import type { Payment, PaymentMode } from '../../types';
+import { RazorpayPaymentModal } from './RazorpayPaymentModal';
 
 interface PaymentCollectionPanelProps {
   grandTotal: number;
@@ -13,7 +14,12 @@ interface PaymentCollectionPanelProps {
   onAddPayment: (payment: Omit<Payment, 'id' | 'paidAt'>) => void;
   onRemovePayment: (paymentId: string) => void;
   customerName?: string;
+  customerEmail?: string;
+  customerContact?: string;
+  orderId?: string;
+  orderNumber?: string;
   allowCredit?: boolean;
+  onInitiateOnlinePayment?: () => Promise<{ orderId: string; orderNumber: string }>;
 }
 
 interface PaymentField {
@@ -37,7 +43,12 @@ export function PaymentCollectionPanel({
   onAddPayment,
   onRemovePayment,
   customerName,
+  customerEmail,
+  customerContact,
+  orderId: initialOrderId,
+  orderNumber: initialOrderNumber,
   allowCredit = true,
+  onInitiateOnlinePayment,
 }: PaymentCollectionPanelProps) {
   // Individual payment amounts
   const [amounts, setAmounts] = useState<Record<PaymentMode, string>>({
@@ -49,6 +60,12 @@ export function PaymentCollectionPanel({
     EMI: '',
     GIFT_VOUCHER: '',
   });
+
+  // Razorpay modal state
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+  const [razorpayOrderId, setRazorpayOrderId] = useState<string | undefined>(initialOrderId);
+  const [razorpayOrderNumber, setRazorpayOrderNumber] = useState<string | undefined>(initialOrderNumber);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
   // Calculate totals
   const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -100,6 +117,48 @@ export function PaymentCollectionPanel({
     setAmounts(prev => ({ ...prev, [mode]: remaining > 0 ? remaining.toString() : '' }));
   };
 
+  // Handle opening Razorpay modal - create draft order if needed
+  const handleOpenRazorpay = useCallback(async () => {
+    if (razorpayOrderId) {
+      // Order already exists, open modal directly
+      setShowRazorpayModal(true);
+      return;
+    }
+
+    // Need to create draft order first
+    if (!onInitiateOnlinePayment) {
+      return;
+    }
+
+    try {
+      setIsCreatingOrder(true);
+      const { orderId, orderNumber } = await onInitiateOnlinePayment();
+      setRazorpayOrderId(orderId);
+      setRazorpayOrderNumber(orderNumber);
+      setShowRazorpayModal(true);
+    } catch (error) {
+      // Error will be handled by the parent component
+      console.error('Failed to create draft order:', error);
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  }, [razorpayOrderId, onInitiateOnlinePayment]);
+
+  // Handle Razorpay payment success
+  const handleRazorpaySuccess = useCallback((paymentData: {
+    paymentId: string;
+    razorpayPaymentId: string;
+    amount: number;
+    method: string;
+  }) => {
+    // Add payment to the list
+    onAddPayment({
+      mode: 'UPI', // Razorpay payments can be UPI, Card, etc.
+      amount: paymentData.amount,
+    });
+    setShowRazorpayModal(false);
+  }, [onAddPayment]);
+
   const formatCurrency = (amount: number) => {
     return `₹${amount.toLocaleString('en-IN')}`;
   };
@@ -112,6 +171,39 @@ export function PaymentCollectionPanel({
       </div>
 
       <div className="p-4 space-y-3">
+        {/* Pay Online with Razorpay Button */}
+        {balanceDue > 0 && (
+          <button
+            onClick={handleOpenRazorpay}
+            disabled={isCreatingOrder}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isCreatingOrder ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creating Order...
+              </>
+            ) : (
+              <>
+                <Globe className="w-5 h-5" />
+                Pay ₹{balanceDue.toLocaleString('en-IN')} Online (Razorpay)
+              </>
+            )}
+          </button>
+        )}
+
+        {/* OR Divider */}
+        {balanceDue > 0 && (
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2 bg-white text-gray-500">OR PAY MANUALLY</span>
+            </div>
+          </div>
+        )}
+
         {/* Payment Input Fields */}
         {PAYMENT_FIELDS.map(({ mode, label, icon: Icon, placeholder, color }) => {
           // Skip credit if not allowed
@@ -220,6 +312,21 @@ export function PaymentCollectionPanel({
           </div>
         )}
       </div>
+
+      {/* Razorpay Payment Modal */}
+      {razorpayOrderId && (
+        <RazorpayPaymentModal
+          isOpen={showRazorpayModal}
+          onClose={() => setShowRazorpayModal(false)}
+          orderId={razorpayOrderId}
+          amount={balanceDue}
+          customerName={customerName}
+          customerEmail={customerEmail}
+          customerContact={customerContact}
+          orderNumber={razorpayOrderNumber}
+          onPaymentSuccess={handleRazorpaySuccess}
+        />
+      )}
     </div>
   );
 }

@@ -100,6 +100,10 @@ export function POSPage() {
   const [orderComplete, setOrderComplete] = useState(false);
   const [completedOrderNumber, setCompletedOrderNumber] = useState<string | null>(null);
 
+  // Draft order for online payment
+  const [draftOrderId, setDraftOrderId] = useState<string | null>(null);
+  const [draftOrderNumber, setDraftOrderNumber] = useState<string | null>(null);
+
   // ============================================================================
   // Calculations
   // ============================================================================
@@ -301,6 +305,113 @@ export function POSPage() {
     setPayments(prev => prev.filter(p => p.id !== paymentId));
   }, []);
 
+  const handleInitiateOnlinePayment = useCallback(async (): Promise<{ orderId: string; orderNumber: string }> => {
+    // Return existing draft order if available
+    if (draftOrderId && draftOrderNumber) {
+      return { orderId: draftOrderId, orderNumber: draftOrderNumber };
+    }
+
+    // Validation - same as handleCompleteOrder
+    if (!customer) {
+      setError('Please select a customer');
+      toast.error('Please select a customer');
+      throw new Error('Please select a customer');
+    }
+
+    if (orderItems.length === 0) {
+      setError('Please add items to the order');
+      toast.error('Please add items to the order');
+      throw new Error('Please add items to the order');
+    }
+
+    // Check for items requiring prescription
+    const itemsNeedingPrescription = orderItems.filter(
+      item => item.requiresPrescription && !item.prescriptionLinked
+    );
+    if (itemsNeedingPrescription.length > 0) {
+      setError('Please link prescription for all optical items');
+      toast.error('Please link prescription for all optical items');
+      throw new Error('Please link prescription for all optical items');
+    }
+
+    try {
+      setError(null);
+
+      // Prepare order data for API
+      const orderData = {
+        customerId: customer.id,
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        customerEmail: customer.email,
+        patientId: selectedPatient?.id,
+        patientName: selectedPatient?.name,
+        storeId: user?.activeStoreId || '',
+        items: orderItems.map(item => ({
+          itemType: item.itemType,
+          productId: item.productId,
+          productName: item.productName,
+          sku: item.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          mrp: item.mrp,
+          offerPrice: item.offerPrice,
+          discountPercent: item.discountPercent,
+          discountAmount: item.discountAmount,
+          finalPrice: item.finalPrice,
+          prescriptionId: item.prescriptionId,
+          lensOptions: item.lensOptions,
+        })),
+        payments: [], // Payments will be added after online payment
+        subtotal,
+        totalDiscount: orderDiscount.amount,
+        taxAmount: gstAmount,
+        grandTotal,
+        amountPaid: 0,
+        balanceDue: grandTotal,
+        orderStatus: 'DRAFT',
+        paymentStatus: 'UNPAID',
+        notes: orderDetails.notes,
+        expectedDelivery: orderDetails.deliveryDate
+          ? new Date(`${orderDetails.deliveryDate}T${orderDetails.deliveryTime || '00:00'}`).toISOString()
+          : undefined,
+        isExpress: orderDetails.isExpress,
+        isUrgent: orderDetails.isUrgent,
+      };
+
+      // Create draft order via API
+      const createdOrder = await orderApi.createOrder(orderData);
+
+      // Save draft order info
+      setDraftOrderId(createdOrder.id);
+      setDraftOrderNumber(createdOrder.orderNumber);
+
+      toast.success(`Draft order ${createdOrder.orderNumber} created`);
+
+      return {
+        orderId: createdOrder.id,
+        orderNumber: createdOrder.orderNumber,
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create draft order';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
+    }
+  }, [
+    draftOrderId,
+    draftOrderNumber,
+    customer,
+    selectedPatient,
+    orderItems,
+    subtotal,
+    orderDiscount,
+    gstAmount,
+    grandTotal,
+    orderDetails,
+    user?.activeStoreId,
+    toast,
+  ]);
+
   const handleHoldOrder = useCallback(() => {
     // Save to local storage or API
     toast.success('Order held for later');
@@ -341,68 +452,101 @@ export function POSPage() {
     try {
       setError(null);
 
-      // Prepare order data for API
-      const orderData = {
-        customerId: customer.id,
-        customerName: customer.name,
-        customerPhone: customer.phone,
-        patientId: selectedPatient?.id,
-        patientName: selectedPatient?.name,
-        storeId: user?.activeStoreId || '',
-        items: orderItems.map(item => ({
-          itemType: item.itemType,
-          productId: item.productId,
-          productName: item.productName,
-          sku: item.sku,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          mrp: item.mrp,
-          offerPrice: item.offerPrice,
-          discountPercent: item.discountPercent,
-          discountAmount: item.discountAmount,
-          finalPrice: item.finalPrice,
-          prescriptionId: item.prescriptionId,
-          lensOptions: item.lensOptions,
-        })),
-        payments: payments.map(p => ({
-          mode: p.mode,
-          amount: p.amount,
-          reference: p.reference,
-          notes: p.notes,
-        })),
-        subtotal,
-        totalDiscount: orderDiscount.amount,
-        taxAmount: gstAmount,
-        grandTotal,
-        amountPaid: totalPaid,
-        balanceDue: Math.max(0, balanceDue),
-        orderStatus: 'DRAFT',
-        paymentStatus: balanceDue <= 0 ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : 'UNPAID',
-        notes: orderDetails.notes,
-        expectedDelivery: orderDetails.deliveryDate
-          ? new Date(`${orderDetails.deliveryDate}T${orderDetails.deliveryTime || '00:00'}`).toISOString()
-          : undefined,
-        isExpress: orderDetails.isExpress,
-        isUrgent: orderDetails.isUrgent,
-      };
+      let finalOrderId: string;
+      let finalOrderNumber: string;
 
-      // Create order via API
-      const createdOrder = await orderApi.createOrder(orderData);
+      // Check if draft order exists (from online payment)
+      if (draftOrderId && draftOrderNumber) {
+        // Use existing draft order
+        finalOrderId = draftOrderId;
+        finalOrderNumber = draftOrderNumber;
 
-      // If we have full payment, confirm the order immediately
-      if (balanceDue <= 0) {
-        await orderApi.confirmOrder(createdOrder.id);
+        // Add any manual payments that were added after online payment
+        const manualPayments = payments.filter(p => p.mode !== 'UPI'); // Razorpay payments are marked as UPI
+        for (const payment of manualPayments) {
+          await orderApi.addPayment(finalOrderId, {
+            mode: payment.mode,
+            amount: payment.amount,
+            reference: payment.reference,
+            notes: payment.notes,
+          });
+        }
+
+        // Confirm the order if fully paid
+        if (balanceDue <= 0) {
+          await orderApi.confirmOrder(finalOrderId);
+        }
+
+        toast.success(`Order ${finalOrderNumber} completed successfully!`);
+      } else {
+        // Create new order (original flow)
+        const orderData = {
+          customerId: customer.id,
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          patientId: selectedPatient?.id,
+          patientName: selectedPatient?.name,
+          storeId: user?.activeStoreId || '',
+          items: orderItems.map(item => ({
+            itemType: item.itemType,
+            productId: item.productId,
+            productName: item.productName,
+            sku: item.sku,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            mrp: item.mrp,
+            offerPrice: item.offerPrice,
+            discountPercent: item.discountPercent,
+            discountAmount: item.discountAmount,
+            finalPrice: item.finalPrice,
+            prescriptionId: item.prescriptionId,
+            lensOptions: item.lensOptions,
+          })),
+          payments: payments.map(p => ({
+            mode: p.mode,
+            amount: p.amount,
+            reference: p.reference,
+            notes: p.notes,
+          })),
+          subtotal,
+          totalDiscount: orderDiscount.amount,
+          taxAmount: gstAmount,
+          grandTotal,
+          amountPaid: totalPaid,
+          balanceDue: Math.max(0, balanceDue),
+          orderStatus: 'DRAFT',
+          paymentStatus: balanceDue <= 0 ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : 'UNPAID',
+          notes: orderDetails.notes,
+          expectedDelivery: orderDetails.deliveryDate
+            ? new Date(`${orderDetails.deliveryDate}T${orderDetails.deliveryTime || '00:00'}`).toISOString()
+            : undefined,
+          isExpress: orderDetails.isExpress,
+          isUrgent: orderDetails.isUrgent,
+        };
+
+        // Create order via API
+        const createdOrder = await orderApi.createOrder(orderData);
+        finalOrderId = createdOrder.id;
+        finalOrderNumber = createdOrder.orderNumber;
+
+        // If we have full payment, confirm the order immediately
+        if (balanceDue <= 0) {
+          await orderApi.confirmOrder(finalOrderId);
+        }
+
+        toast.success(`Order ${finalOrderNumber} created successfully!`);
       }
 
-      setCompletedOrderNumber(createdOrder.orderNumber);
+      setCompletedOrderNumber(finalOrderNumber);
       setOrderComplete(true);
-      toast.success(`Order ${createdOrder.orderNumber} created successfully!`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create order';
       setError(errorMessage);
       toast.error(errorMessage);
     }
   }, [
+    draftOrderId,
+    draftOrderNumber,
     customer,
     selectedPatient,
     orderItems,
@@ -422,6 +566,8 @@ export function POSPage() {
     handleClearCustomer();
     setOrderComplete(false);
     setCompletedOrderNumber(null);
+    setDraftOrderId(null);
+    setDraftOrderNumber(null);
   }, [handleClearCustomer]);
 
   // Focus barcode input on mount and category change
@@ -645,7 +791,12 @@ export function POSPage() {
                 payments={payments}
                 onAddPayment={handleAddPayment}
                 onRemovePayment={handleRemovePayment}
-                customerName={customer.name}
+                customerName={customer?.name}
+                customerEmail={customer?.email}
+                customerContact={customer?.phone}
+                orderId={draftOrderId || undefined}
+                orderNumber={draftOrderNumber || undefined}
+                onInitiateOnlinePayment={handleInitiateOnlinePayment}
                 allowCredit={true}
               />
 

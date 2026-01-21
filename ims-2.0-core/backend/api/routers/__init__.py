@@ -20,6 +20,7 @@ from .settings import router as settings_router
 from .integrations import router as integrations_router
 from .ai_intelligence import router as ai_router
 from .approvals import router as approvals_router
+from .payments import router as payments_router
 
 __all__ = [
     'auth_router',
@@ -39,5 +40,6 @@ __all__ = [
     'settings_router',
     'integrations_router',
     'ai_router',
-    'approvals_router'
+    'approvals_router',
+    'payments_router'
 ]
