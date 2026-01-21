@@ -24,7 +24,13 @@ import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import {
-  storeApi, settingsApi, integrationsApi,
+  adminStoreApi,
+  adminUserApi,
+  adminBrandApi,
+  adminLensApi,
+  adminDiscountApi,
+  adminIntegrationApi,
+  adminSystemApi,
 } from '../../services/api';
 
 // ============================================================================
@@ -209,6 +215,19 @@ export function SettingsPage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>(INTEGRATION_DEFINITIONS);
 
+  // Lens master state
+  const [lensBrands, setLensBrands] = useState<LensBrand[]>([]);
+  const [lensIndices, setLensIndices] = useState<LensIndex[]>([]);
+  const [lensCoatings, setLensCoatings] = useState<LensCoating[]>([]);
+  const [lensAddons, setLensAddons] = useState<{ id: string; name: string; code: string; price: number }[]>([]);
+
+  // Discount state
+  const [roleDiscountCaps, setRoleDiscountCaps] = useState<Record<string, { mass: number; premium: number; luxury: number }>>({});
+  const [tierDiscounts, setTierDiscounts] = useState<Record<string, number>>({});
+
+  // System state
+  const [systemStatus, setSystemStatus] = useState<{ database: string; api: string; version: string } | null>(null);
+
   // Modal state
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -235,26 +254,115 @@ export function SettingsPage() {
     try {
       switch (activeTab) {
         case 'stores':
-          const storesResponse = await storeApi.getStores();
-          if (storesResponse?.stores) {
-            setStores(storesResponse.stores.map(transformStore));
-          } else if (Array.isArray(storesResponse)) {
-            setStores(storesResponse.map(transformStore));
+          try {
+            const storesResponse = await adminStoreApi.getStores();
+            if (storesResponse?.stores) {
+              setStores(storesResponse.stores.map(transformStore));
+            } else if (Array.isArray(storesResponse)) {
+              setStores(storesResponse.map(transformStore));
+            }
+          } catch (err) {
+            console.log('Stores API not available, starting with empty list');
+            setStores([]);
+          }
+          break;
+
+        case 'users':
+          try {
+            const usersResponse = await adminUserApi.getUsers();
+            if (usersResponse?.users) {
+              setUsers(usersResponse.users.map(transformUser));
+            } else if (Array.isArray(usersResponse)) {
+              setUsers(usersResponse.map(transformUser));
+            }
+          } catch (err) {
+            console.log('Users API not available, starting with empty list');
+            setUsers([]);
+          }
+          break;
+
+        case 'brands':
+          try {
+            const brandsResponse = await adminBrandApi.getBrands();
+            if (brandsResponse?.brands) {
+              setBrands(brandsResponse.brands.map(transformBrand));
+            } else if (Array.isArray(brandsResponse)) {
+              setBrands(brandsResponse.map(transformBrand));
+            }
+          } catch (err) {
+            console.log('Brands API not available, starting with empty list');
+            setBrands([]);
+          }
+          break;
+
+        case 'lens-master':
+          try {
+            const [brandsRes, indicesRes, coatingsRes, addonsRes] = await Promise.all([
+              adminLensApi.getLensBrands().catch(() => ({ brands: [] })),
+              adminLensApi.getLensIndices().catch(() => ({ indices: [] })),
+              adminLensApi.getLensCoatings().catch(() => ({ coatings: [] })),
+              adminLensApi.getLensAddons().catch(() => ({ addons: [] })),
+            ]);
+            setLensBrands(brandsRes?.brands || brandsRes || []);
+            setLensIndices(indicesRes?.indices || indicesRes || []);
+            setLensCoatings(coatingsRes?.coatings || coatingsRes || []);
+            setLensAddons(addonsRes?.addons || addonsRes || []);
+          } catch (err) {
+            console.log('Lens API not available');
+          }
+          break;
+
+        case 'discounts':
+          try {
+            const [roleCapRes, tierRes] = await Promise.all([
+              adminDiscountApi.getRoleDiscountCaps().catch(() => ({})),
+              adminDiscountApi.getTierDiscounts().catch(() => ({})),
+            ]);
+            if (roleCapRes?.caps) {
+              setRoleDiscountCaps(roleCapRes.caps);
+            }
+            if (tierRes?.discounts) {
+              setTierDiscounts(tierRes.discounts);
+            }
+          } catch (err) {
+            console.log('Discount API not available');
           }
           break;
 
         case 'integrations':
           try {
-            const intResponse = await integrationsApi.listIntegrations();
-            if (intResponse?.integrations) {
-              const merged = INTEGRATION_DEFINITIONS.map(def => {
-                const apiInt = intResponse.integrations.find((i: any) => i.type === def.type);
-                return apiInt ? { ...def, isConfigured: apiInt.is_configured, isEnabled: apiInt.is_enabled } : def;
-              });
-              setIntegrations(merged);
-            }
+            const [razorpayRes, whatsappRes, tallyRes, shopifyRes] = await Promise.all([
+              adminIntegrationApi.getRazorpayConfig().catch(() => null),
+              adminIntegrationApi.getWhatsappConfig().catch(() => null),
+              adminIntegrationApi.getTallyConfig().catch(() => null),
+              adminIntegrationApi.getShopifyConfig().catch(() => null),
+            ]);
+            const merged = INTEGRATION_DEFINITIONS.map(def => {
+              let config: any = null;
+              if (def.type === 'razorpay') config = razorpayRes;
+              if (def.type === 'whatsapp') config = whatsappRes;
+              if (def.type === 'tally') config = tallyRes;
+              if (def.type === 'shopify') config = shopifyRes;
+              return {
+                ...def,
+                isConfigured: config?.is_configured || config?.configured || false,
+                isEnabled: config?.is_enabled || config?.enabled || false,
+              };
+            });
+            setIntegrations(merged);
           } catch {
             // Use defaults if API fails
+          }
+          break;
+
+        case 'system':
+          try {
+            const statusRes = await adminSystemApi.getSystemStatus().catch(() => null);
+            if (statusRes) {
+              setSystemStatus(statusRes);
+            }
+          } catch {
+            // Ignore
           }
           break;
       }
@@ -287,6 +395,35 @@ export function SettingsPage() {
     isActive: s.is_active !== false,
   });
 
+  const transformUser = (u: any): User => ({
+    id: u.id || u.user_id || u._id,
+    username: u.username || u.user_name || '',
+    email: u.email || '',
+    fullName: u.full_name || u.fullName || u.name || '',
+    phone: u.phone || u.contact_phone || '',
+    roles: u.roles || u.role ? [u.role] : [],
+    accessibleStores: u.accessible_stores || u.accessibleStores || u.store_ids || [],
+    discountCap: u.discount_cap || u.discountCap || 10,
+    isActive: u.is_active !== false,
+    createdAt: u.created_at || u.createdAt || '',
+  });
+
+  const transformBrand = (b: any): Brand => ({
+    id: b.id || b.brand_id || b._id,
+    brandName: b.brand_name || b.brandName || b.name || '',
+    brandCode: b.brand_code || b.brandCode || b.code || '',
+    categories: b.categories || [],
+    tier: b.tier || 'MASS',
+    isActive: b.is_active !== false,
+    subbrands: (b.subbrands || []).map((sb: any) => ({
+      id: sb.id || sb.subbrand_id,
+      name: sb.name || sb.subbrand_name,
+      code: sb.code || sb.subbrand_code,
+      brandId: b.id,
+      isActive: sb.is_active !== false,
+    })),
+  });
+
   // ============================================================================
   // Store Management Handlers
   // ============================================================================
@@ -294,16 +431,128 @@ export function SettingsPage() {
   const handleSaveStore = async (storeData: Partial<Store>) => {
     try {
       setIsLoading(true);
-      // API call to create/update store
-      // await storeApi.createStore(storeData) or updateStore
+      const apiData = {
+        name: storeData.storeName || '',
+        code: storeData.storeCode || '',
+        address: storeData.address || '',
+        city: storeData.city || '',
+        state: storeData.state || '',
+        phone: storeData.phone || '',
+        email: storeData.email || '',
+        gst: storeData.gstin || '',
+        pincode: storeData.pincode || '',
+        opening_time: storeData.openingTime || '10:00',
+        closing_time: storeData.closingTime || '20:00',
+        geo_fence_radius: storeData.geoFenceRadius || 100,
+        enabled_categories: storeData.enabledCategories || [],
+        status: storeData.isActive ? 'ACTIVE' : 'INACTIVE',
+      };
+
+      if (editingStore?.id) {
+        await adminStoreApi.updateStore(editingStore.id, apiData);
+      } else {
+        await adminStoreApi.createStore(apiData);
+      }
       toast.success(editingStore ? 'Store updated successfully' : 'Store created successfully');
       setShowAddStoreModal(false);
       setEditingStore(null);
       loadTabData();
     } catch (err) {
-      toast.error('Failed to save store');
+      console.error('Failed to save store:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to save store');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveUser = async (userData: Partial<User>, password?: string) => {
+    try {
+      setIsLoading(true);
+      const apiData = {
+        name: userData.fullName || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        role: userData.roles?.[0] || 'SALES_STAFF',
+        storeId: userData.accessibleStores?.[0] || '',
+        password: password,
+        status: userData.isActive ? 'ACTIVE' : 'INACTIVE',
+      };
+
+      if (editingUser?.id) {
+        await adminUserApi.updateUser(editingUser.id, apiData);
+      } else {
+        await adminUserApi.createUser(apiData);
+      }
+      toast.success(editingUser ? 'User updated successfully' : 'User created successfully');
+      setShowAddUserModal(false);
+      setEditingUser(null);
+      loadTabData();
+    } catch (err) {
+      console.error('Failed to save user:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to save user');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveBrand = async (brandData: Partial<Brand>) => {
+    try {
+      setIsLoading(true);
+      const apiData = {
+        name: brandData.brandName || '',
+        code: brandData.brandCode || '',
+        categories: brandData.categories || [],
+        tier: brandData.tier || 'MASS',
+        status: brandData.isActive ? 'ACTIVE' : 'INACTIVE',
+      };
+
+      if (editingBrand?.id) {
+        await adminBrandApi.updateBrand(editingBrand.id, apiData);
+      } else {
+        await adminBrandApi.createBrand(apiData);
+      }
+      toast.success(editingBrand ? 'Brand updated successfully' : 'Brand created successfully');
+      setShowAddBrandModal(false);
+      setEditingBrand(null);
+      loadTabData();
+    } catch (err) {
+      console.error('Failed to save brand:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to save brand');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteStore = async (storeId: string) => {
+    if (!window.confirm('Are you sure you want to delete this store?')) return;
+    try {
+      await adminStoreApi.deleteStore(storeId);
+      toast.success('Store deleted successfully');
+      loadTabData();
+    } catch (err) {
+      toast.error('Failed to delete store');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      await adminUserApi.deleteUser(userId);
+      toast.success('User deleted successfully');
+      loadTabData();
+    } catch (err) {
+      toast.error('Failed to delete user');
+    }
+  };
+
+  const handleDeleteBrand = async (brandId: string) => {
+    if (!window.confirm('Are you sure you want to delete this brand?')) return;
+    try {
+      await adminBrandApi.deleteBrand(brandId);
+      toast.success('Brand deleted successfully');
+      loadTabData();
+    } catch (err) {
+      toast.error('Failed to delete brand');
     }
   };
 
@@ -425,8 +674,16 @@ export function SettingsPage() {
                                     setShowAddStoreModal(true);
                                   }}
                                   className="p-2 text-gray-400 hover:text-bv-red-600 hover:bg-gray-100 rounded"
+                                  title="Edit store"
                                 >
                                   <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteStore(store.id)}
+                                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                  title="Delete store"
+                                >
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
@@ -507,9 +764,25 @@ export function SettingsPage() {
                                 )}
                               </td>
                               <td className="px-4 py-3 text-center">
-                                <button className="text-gray-400 hover:text-bv-red-600">
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingUser(u);
+                                      setShowAddUserModal(true);
+                                    }}
+                                    className="text-gray-400 hover:text-bv-red-600"
+                                    title="Edit user"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteUser(u.id)}
+                                    className="text-gray-400 hover:text-red-600"
+                                    title="Delete user"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -647,9 +920,25 @@ export function SettingsPage() {
                                 Categories: {brand.categories.join(', ')}
                               </p>
                             </div>
-                            <button className="text-gray-400 hover:text-bv-red-600">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingBrand(brand);
+                                  setShowAddBrandModal(true);
+                                }}
+                                className="text-gray-400 hover:text-bv-red-600"
+                                title="Edit brand"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteBrand(brand.id)}
+                                className="text-gray-400 hover:text-red-600"
+                                title="Delete brand"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
 
                           {/* Subbrands */}
@@ -687,18 +976,54 @@ export function SettingsPage() {
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium text-gray-700">Lens Brands</h3>
-                        <button className="text-sm text-bv-red-600 hover:underline flex items-center gap-1">
+                        <button
+                          onClick={async () => {
+                            const name = prompt('Enter lens brand name:');
+                            if (name) {
+                              try {
+                                await adminLensApi.createLensBrand({ name, code: name.toUpperCase().replace(/\s+/g, '_') });
+                                toast.success('Lens brand added');
+                                loadTabData();
+                              } catch (err) {
+                                toast.error('Failed to add lens brand');
+                              }
+                            }
+                          }}
+                          className="text-sm text-bv-red-600 hover:underline flex items-center gap-1"
+                        >
                           <Plus className="w-3 h-3" />
                           Add Brand
                         </button>
                       </div>
                       <div className="grid grid-cols-4 gap-2">
-                        {['Essilor', 'Zeiss', 'Titan Eye+', 'Nova', 'Hoya', 'Kodak'].map(brand => (
-                          <div key={brand} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
-                            <span className="text-sm">{brand}</span>
-                            <Edit2 className="w-3 h-3 text-gray-400 cursor-pointer hover:text-bv-red-600" />
+                        {lensBrands.length === 0 ? (
+                          <div className="col-span-4 text-center py-4 text-gray-400">
+                            No lens brands configured. Click "Add Brand" to add one.
                           </div>
-                        ))}
+                        ) : (
+                          lensBrands.map(brand => (
+                            <div key={brand.id} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                              <span className="text-sm">{brand.name}</span>
+                              <div className="flex items-center gap-1">
+                                <Edit2 className="w-3 h-3 text-gray-400 cursor-pointer hover:text-bv-red-600" />
+                                <Trash2
+                                  className="w-3 h-3 text-gray-400 cursor-pointer hover:text-red-600"
+                                  onClick={async () => {
+                                    if (window.confirm(`Delete lens brand "${brand.name}"?`)) {
+                                      try {
+                                        await adminLensApi.deleteLensBrand(brand.id);
+                                        toast.success('Lens brand deleted');
+                                        loadTabData();
+                                      } catch (err) {
+                                        toast.error('Failed to delete lens brand');
+                                      }
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
 
@@ -706,23 +1031,55 @@ export function SettingsPage() {
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium text-gray-700">Lens Indices</h3>
-                        <button className="text-sm text-bv-red-600 hover:underline flex items-center gap-1">
+                        <button
+                          onClick={async () => {
+                            const value = prompt('Enter index value (e.g., 1.56):');
+                            const name = prompt('Enter index name (e.g., Standard):');
+                            if (value && name) {
+                              try {
+                                await adminLensApi.createLensIndex({ value, multiplier: 1.0, description: name });
+                                toast.success('Lens index added');
+                                loadTabData();
+                              } catch (err) {
+                                toast.error('Failed to add lens index');
+                              }
+                            }
+                          }}
+                          className="text-sm text-bv-red-600 hover:underline flex items-center gap-1"
+                        >
                           <Plus className="w-3 h-3" />
                           Add Index
                         </button>
                       </div>
                       <div className="grid grid-cols-4 gap-2">
-                        {[
-                          { value: '1.56', name: 'Standard' },
-                          { value: '1.60', name: 'Thin' },
-                          { value: '1.67', name: 'Ultra-Thin' },
-                          { value: '1.74', name: 'Super-Thin' },
-                        ].map(idx => (
-                          <div key={idx.value} className="p-3 bg-gray-50 rounded-lg">
-                            <span className="text-sm font-medium">{idx.value}</span>
-                            <span className="text-xs text-gray-500 ml-2">{idx.name}</span>
+                        {lensIndices.length === 0 ? (
+                          <div className="col-span-4 text-center py-4 text-gray-400">
+                            No lens indices configured. Click "Add Index" to add one.
                           </div>
-                        ))}
+                        ) : (
+                          lensIndices.map(idx => (
+                            <div key={idx.id} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                              <div>
+                                <span className="text-sm font-medium">{idx.value}</span>
+                                <span className="text-xs text-gray-500 ml-2">{idx.name}</span>
+                              </div>
+                              <Trash2
+                                className="w-3 h-3 text-gray-400 cursor-pointer hover:text-red-600"
+                                onClick={async () => {
+                                  if (window.confirm(`Delete lens index "${idx.value}"?`)) {
+                                    try {
+                                      await adminLensApi.deleteLensIndex(idx.id);
+                                      toast.success('Lens index deleted');
+                                      loadTabData();
+                                    } catch (err) {
+                                      toast.error('Failed to delete lens index');
+                                    }
+                                  }
+                                }}
+                              />
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
 
@@ -730,25 +1087,62 @@ export function SettingsPage() {
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium text-gray-700">Coatings</h3>
-                        <button className="text-sm text-bv-red-600 hover:underline flex items-center gap-1">
+                        <button
+                          onClick={async () => {
+                            const name = prompt('Enter coating name:');
+                            const priceStr = prompt('Enter coating price:');
+                            if (name && priceStr) {
+                              try {
+                                await adminLensApi.createLensCoating({
+                                  name,
+                                  code: name.toUpperCase().replace(/\s+/g, '_'),
+                                  price: parseFloat(priceStr) || 0,
+                                });
+                                toast.success('Coating added');
+                                loadTabData();
+                              } catch (err) {
+                                toast.error('Failed to add coating');
+                              }
+                            }
+                          }}
+                          className="text-sm text-bv-red-600 hover:underline flex items-center gap-1"
+                        >
                           <Plus className="w-3 h-3" />
                           Add Coating
                         </button>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        {[
-                          'Anti-Reflective (AR)',
-                          'Blue Light Filter',
-                          'Photochromic',
-                          'Transitions',
-                          'Hard Multi Coat (HMC)',
-                          'DuraVision Platinum',
-                        ].map(coating => (
-                          <div key={coating} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
-                            <span className="text-sm">{coating}</span>
-                            <Edit2 className="w-3 h-3 text-gray-400 cursor-pointer hover:text-bv-red-600" />
+                        {lensCoatings.length === 0 ? (
+                          <div className="col-span-3 text-center py-4 text-gray-400">
+                            No coatings configured. Click "Add Coating" to add one.
                           </div>
-                        ))}
+                        ) : (
+                          lensCoatings.map(coating => (
+                            <div key={coating.id} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                              <div>
+                                <span className="text-sm">{coating.name}</span>
+                                <span className="text-xs text-gray-500 ml-2">₹{coating.price}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Edit2 className="w-3 h-3 text-gray-400 cursor-pointer hover:text-bv-red-600" />
+                                <Trash2
+                                  className="w-3 h-3 text-gray-400 cursor-pointer hover:text-red-600"
+                                  onClick={async () => {
+                                    if (window.confirm(`Delete coating "${coating.name}"?`)) {
+                                      try {
+                                        await adminLensApi.deleteLensCoating(coating.id);
+                                        toast.success('Coating deleted');
+                                        loadTabData();
+                                      } catch (err) {
+                                        toast.error('Failed to delete coating');
+                                      }
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
 
@@ -756,25 +1150,63 @@ export function SettingsPage() {
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium text-gray-700">Add-ons</h3>
-                        <button className="text-sm text-bv-red-600 hover:underline flex items-center gap-1">
+                        <button
+                          onClick={async () => {
+                            const name = prompt('Enter add-on name:');
+                            const priceStr = prompt('Enter add-on price:');
+                            if (name && priceStr) {
+                              try {
+                                await adminLensApi.createLensAddon({
+                                  name,
+                                  code: name.toUpperCase().replace(/\s+/g, '_'),
+                                  price: parseFloat(priceStr) || 0,
+                                  type: 'ADDON',
+                                });
+                                toast.success('Add-on added');
+                                loadTabData();
+                              } catch (err) {
+                                toast.error('Failed to add add-on');
+                              }
+                            }
+                          }}
+                          className="text-sm text-bv-red-600 hover:underline flex items-center gap-1"
+                        >
                           <Plus className="w-3 h-3" />
                           Add Add-on
                         </button>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        {[
-                          'UV Protection',
-                          'Scratch Resistant',
-                          'Hydrophobic',
-                          'Oleophobic',
-                          'Easy Clean',
-                          'Dust Repellent',
-                        ].map(addon => (
-                          <div key={addon} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
-                            <span className="text-sm">{addon}</span>
-                            <Edit2 className="w-3 h-3 text-gray-400 cursor-pointer hover:text-bv-red-600" />
+                        {lensAddons.length === 0 ? (
+                          <div className="col-span-3 text-center py-4 text-gray-400">
+                            No add-ons configured. Click "Add Add-on" to add one.
                           </div>
-                        ))}
+                        ) : (
+                          lensAddons.map(addon => (
+                            <div key={addon.id} className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                              <div>
+                                <span className="text-sm">{addon.name}</span>
+                                <span className="text-xs text-gray-500 ml-2">₹{addon.price}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Edit2 className="w-3 h-3 text-gray-400 cursor-pointer hover:text-bv-red-600" />
+                                <Trash2
+                                  className="w-3 h-3 text-gray-400 cursor-pointer hover:text-red-600"
+                                  onClick={async () => {
+                                    if (window.confirm(`Delete add-on "${addon.name}"?`)) {
+                                      try {
+                                        await adminLensApi.deleteLensAddon(addon.id);
+                                        toast.success('Add-on deleted');
+                                        loadTabData();
+                                      } catch (err) {
+                                        toast.error('Failed to delete add-on');
+                                      }
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
@@ -932,17 +1364,21 @@ export function SettingsPage() {
                   <div className="card">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 bg-green-50 rounded-lg">
+                      <div className={clsx('p-4 rounded-lg', systemStatus?.database === 'connected' ? 'bg-green-50' : 'bg-yellow-50')}>
                         <p className="text-sm text-gray-500">Database</p>
-                        <p className="font-medium text-green-600">Connected</p>
+                        <p className={clsx('font-medium', systemStatus?.database === 'connected' ? 'text-green-600' : 'text-yellow-600')}>
+                          {systemStatus?.database || 'Checking...'}
+                        </p>
                       </div>
-                      <div className="p-4 bg-green-50 rounded-lg">
+                      <div className={clsx('p-4 rounded-lg', systemStatus?.api === 'healthy' ? 'bg-green-50' : 'bg-yellow-50')}>
                         <p className="text-sm text-gray-500">API Status</p>
-                        <p className="font-medium text-green-600">Healthy</p>
+                        <p className={clsx('font-medium', systemStatus?.api === 'healthy' ? 'text-green-600' : 'text-yellow-600')}>
+                          {systemStatus?.api || 'Checking...'}
+                        </p>
                       </div>
                       <div className="p-4 bg-blue-50 rounded-lg">
                         <p className="text-sm text-gray-500">Version</p>
-                        <p className="font-medium text-blue-600">2.0.0</p>
+                        <p className="font-medium text-blue-600">{systemStatus?.version || '2.0.0'}</p>
                       </div>
                     </div>
                   </div>
@@ -950,7 +1386,29 @@ export function SettingsPage() {
                   <div className="card">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Data Management</h2>
                     <div className="space-y-3">
-                      <button className="w-full p-4 bg-gray-50 rounded-lg text-left hover:bg-gray-100 transition-colors flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = '.csv,.xlsx,.xls';
+                          input.onchange = async (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              try {
+                                const type = prompt('Import type (products, customers, inventory):');
+                                if (type) {
+                                  await adminSystemApi.importData(type, file);
+                                  toast.success('Data imported successfully');
+                                }
+                              } catch (err) {
+                                toast.error('Failed to import data');
+                              }
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="w-full p-4 bg-gray-50 rounded-lg text-left hover:bg-gray-100 transition-colors flex items-center justify-between"
+                      >
                         <div className="flex items-center gap-3">
                           <Upload className="w-5 h-5 text-gray-400" />
                           <div>
@@ -960,7 +1418,26 @@ export function SettingsPage() {
                         </div>
                         <ChevronRight className="w-5 h-5 text-gray-400" />
                       </button>
-                      <button className="w-full p-4 bg-gray-50 rounded-lg text-left hover:bg-gray-100 transition-colors flex items-center justify-between">
+                      <button
+                        onClick={async () => {
+                          const type = prompt('Export type (products, customers, orders, inventory, all):');
+                          if (type) {
+                            try {
+                              const blob = await adminSystemApi.exportData(type as any);
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `ims_export_${type}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                              toast.success('Data exported successfully');
+                            } catch (err) {
+                              toast.error('Failed to export data');
+                            }
+                          }
+                        }}
+                        className="w-full p-4 bg-gray-50 rounded-lg text-left hover:bg-gray-100 transition-colors flex items-center justify-between"
+                      >
                         <div className="flex items-center gap-3">
                           <Download className="w-5 h-5 text-gray-400" />
                           <div>
@@ -970,7 +1447,19 @@ export function SettingsPage() {
                         </div>
                         <ChevronRight className="w-5 h-5 text-gray-400" />
                       </button>
-                      <button className="w-full p-4 bg-gray-50 rounded-lg text-left hover:bg-gray-100 transition-colors flex items-center justify-between">
+                      <button
+                        onClick={async () => {
+                          if (window.confirm('Create a full system backup?')) {
+                            try {
+                              await adminSystemApi.createBackup();
+                              toast.success('Backup created successfully');
+                            } catch (err) {
+                              toast.error('Failed to create backup');
+                            }
+                          }
+                        }}
+                        className="w-full p-4 bg-gray-50 rounded-lg text-left hover:bg-gray-100 transition-colors flex items-center justify-between"
+                      >
                         <div className="flex items-center gap-3">
                           <Database className="w-5 h-5 text-gray-400" />
                           <div>
@@ -1015,11 +1504,7 @@ export function SettingsPage() {
             setShowAddUserModal(false);
             setEditingUser(null);
           }}
-          onSave={async (userData) => {
-            toast.success('User saved successfully');
-            setShowAddUserModal(false);
-            loadTabData();
-          }}
+          onSave={handleSaveUser}
         />
       )}
 
@@ -1034,11 +1519,7 @@ export function SettingsPage() {
             setShowAddBrandModal(false);
             setEditingBrand(null);
           }}
-          onSave={async (brandData) => {
-            toast.success('Brand saved successfully');
-            setShowAddBrandModal(false);
-            loadTabData();
-          }}
+          onSave={handleSaveBrand}
         />
       )}
     </div>
@@ -1273,7 +1754,7 @@ function UserModal({
   user: User | null;
   stores: Store[];
   onClose: () => void;
-  onSave: (data: Partial<User>) => void;
+  onSave: (data: Partial<User>, password?: string) => void;
 }) {
   const [formData, setFormData] = useState<Partial<User>>(
     user || {
@@ -1421,7 +1902,7 @@ function UserModal({
           <button onClick={onClose} className="btn-outline">
             Cancel
           </button>
-          <button onClick={() => onSave(formData)} className="btn-primary">
+          <button onClick={() => onSave(formData, password)} className="btn-primary">
             {user ? 'Update User' : 'Create User'}
           </button>
         </div>
