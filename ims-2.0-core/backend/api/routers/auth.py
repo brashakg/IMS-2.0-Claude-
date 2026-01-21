@@ -9,8 +9,12 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
 import jwt
-import hashlib
+import bcrypt
 import os
+from math import radians, cos, sin, asin, sqrt
+
+from ..database import Database
+from ...database.repositories.user_repository import UserRepository
 
 router = APIRouter()
 security = HTTPBearer()
@@ -19,6 +23,17 @@ security = HTTPBearer()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "ims-2.0-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
+
+# Initialize repository
+user_repo = None
+
+def get_user_repository():
+    """Initialize user repository with database connection"""
+    global user_repo
+    if user_repo is None:
+        db = Database.get_collection("users")
+        user_repo = UserRepository(db)
+    return user_repo
 
 
 # ============================================================================
@@ -58,13 +73,36 @@ class RefreshTokenRequest(BaseModel):
 # HELPERS
 # ============================================================================
 
-def hash_password(password: str) -> str:
-    """Hash password using SHA-256"""
-    return hashlib.sha256(password.encode()).hexdigest()
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against hash"""
-    return hash_password(plain_password) == hashed_password
+    """Verify password against bcrypt hash"""
+    return bcrypt.checkpw(
+        plain_password.encode('utf-8'),
+        hashed_password.encode('utf-8')
+    )
+
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt"""
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calculate distance between two coordinates in meters using Haversine formula
+    """
+    # Convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # Haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
+
+    # Radius of earth in meters
+    r = 6371000
+
+    return c * r
 
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     """Create JWT access token"""
@@ -98,78 +136,99 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def login(request: LoginRequest):
     """
     Authenticate user and return JWT token
+    Validates geo-location for store staff
     """
-    # TODO: Replace with actual database lookup
-    # Mock user for demonstration
-    mock_users = {
-        "admin": {
-            "user_id": "user-001",
-            "username": "admin",
-            "password_hash": hash_password("admin123"),
-            "full_name": "Admin User",
-            "roles": ["ADMIN", "SUPERADMIN"],
-            "store_ids": ["store-hq"],
-            "is_active": True
-        },
-        "manager": {
-            "user_id": "user-002",
-            "username": "manager",
-            "password_hash": hash_password("manager123"),
-            "full_name": "Store Manager",
-            "roles": ["STORE_MANAGER"],
-            "store_ids": ["store-001"],
-            "is_active": True
-        },
-        "staff": {
-            "user_id": "user-003",
-            "username": "staff",
-            "password_hash": hash_password("staff123"),
-            "full_name": "Sales Staff",
-            "roles": ["SALES_STAFF"],
-            "store_ids": ["store-001"],
-            "is_active": True
-        }
-    }
-    
-    user = mock_users.get(request.username)
-    
+    repo = get_user_repository()
+
+    # Lookup user by username
+    user = repo.find_by_username(request.username)
+
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    
-    if not verify_password(request.password, user["password_hash"]):
+
+    # Verify password using bcrypt
+    if not verify_password(request.password, user.get("password", "")):
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    
-    if not user["is_active"]:
+
+    # Check if account is active
+    if not user.get("is_active", False):
         raise HTTPException(status_code=403, detail="User account is disabled")
-    
+
+    # Get user roles and accessible stores
+    roles = user.get("roles", [])
+    accessible_stores = user.get("accessible_stores", [])
+
     # Validate store access if store_id provided
     active_store = request.store_id
-    if active_store and active_store not in user["store_ids"]:
-        # Allow ADMIN/SUPERADMIN to access any store
-        if not any(r in ["ADMIN", "SUPERADMIN"] for r in user["roles"]):
-            raise HTTPException(status_code=403, detail="No access to this store")
-    
+    if active_store:
+        if active_store not in accessible_stores:
+            # Allow ADMIN/SUPERADMIN to access any store
+            if not any(r in ["ADMIN", "SUPERADMIN"] for r in roles):
+                raise HTTPException(status_code=403, detail="No access to this store")
+    else:
+        # Use primary store if no store_id provided
+        active_store = user.get("primary_store_id") or (accessible_stores[0] if accessible_stores else None)
+
+    # Geo-location validation for store staff
+    # HQ roles (ADMIN, SUPERADMIN, AREA_MANAGER, ACCOUNTANT, CATALOG_MANAGER) are exempt
+    hq_roles = ["ADMIN", "SUPERADMIN", "AREA_MANAGER", "ACCOUNTANT", "CATALOG_MANAGER"]
+    is_store_staff = not any(r in hq_roles for r in roles)
+
+    if is_store_staff and active_store and request.latitude and request.longitude:
+        # Get store location
+        store = Database.get_collection("stores").find_one({"store_id": active_store})
+
+        if store and store.get("latitude") and store.get("longitude"):
+            store_lat = store["latitude"]
+            store_lon = store["longitude"]
+            geo_radius = store.get("geo_radius_meters", 500)  # Default 500m
+
+            # Calculate distance
+            distance = calculate_distance(
+                request.latitude,
+                request.longitude,
+                store_lat,
+                store_lon
+            )
+
+            if distance > geo_radius:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"You must be within {geo_radius}m of the store to login. Current distance: {int(distance)}m"
+                )
+
+    # Update last login
+    repo.update(user["user_id"], {
+        "last_login": datetime.now(),
+        "last_login_location": {
+            "latitude": request.latitude,
+            "longitude": request.longitude
+        } if request.latitude and request.longitude else None
+    })
+
     # Create token
     token_data = {
         "user_id": user["user_id"],
         "username": user["username"],
-        "roles": user["roles"],
-        "store_ids": user["store_ids"],
-        "active_store_id": active_store or user["store_ids"][0] if user["store_ids"] else None
+        "roles": roles,
+        "accessible_stores": accessible_stores,
+        "active_store_id": active_store
     }
-    
+
     access_token = create_access_token(token_data)
-    
+
     return LoginResponse(
         access_token=access_token,
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user={
             "user_id": user["user_id"],
             "username": user["username"],
-            "full_name": user["full_name"],
-            "roles": user["roles"],
-            "store_ids": user["store_ids"],
-            "active_store_id": token_data["active_store_id"]
+            "full_name": user.get("full_name"),
+            "email": user.get("email"),
+            "roles": roles,
+            "accessible_stores": accessible_stores,
+            "active_store_id": active_store,
+            "discount_cap": user.get("discount_cap", 0)
         }
     )
 
@@ -218,14 +277,41 @@ async def refresh_token(request: RefreshTokenRequest):
 
 @router.post("/change-password")
 async def change_password(
-    request: ChangePasswordRequest, 
+    request: ChangePasswordRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """
     Change user password
+    Verifies current password before updating with bcrypt
     """
-    # TODO: Verify current password and update in database
-    return {"message": "Password changed successfully"}
+    repo = get_user_repository()
+
+    # Get user from database
+    user = repo.find_by_id(current_user["user_id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Verify current password
+    if not verify_password(request.current_password, user.get("password", "")):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    # Hash new password with bcrypt
+    new_password_hash = hash_password(request.new_password)
+
+    # Update in database
+    success = repo.update(current_user["user_id"], {
+        "password": new_password_hash,
+        "password_changed_at": datetime.now(),
+        "updated_at": datetime.now()
+    })
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update password")
+
+    return {
+        "message": "Password changed successfully",
+        "changed_at": datetime.now().isoformat()
+    }
 
 
 @router.post("/switch-store/{store_id}")
