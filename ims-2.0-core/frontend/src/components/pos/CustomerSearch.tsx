@@ -56,6 +56,26 @@ export function CustomerSearch({ onSelect }: CustomerSearchProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '' });
 
+  // Quick Walk-in customer for fast checkout
+  const handleWalkInCustomer = useCallback(() => {
+    const walkInCustomer: Customer = {
+      id: `walkin-${Date.now()}`,
+      name: 'Walk-in Customer',
+      phone: '0000000000',
+      customerType: 'B2C',
+      patients: [
+        {
+          id: `pat-walkin-${Date.now()}`,
+          customerId: `walkin-${Date.now()}`,
+          name: 'Walk-in Customer',
+          relation: 'Self',
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+    onSelect(walkInCustomer);
+  }, [onSelect]);
+
   // Search handler
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
@@ -174,9 +194,26 @@ export function CustomerSearch({ onSelect }: CustomerSearchProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h3 className="font-medium text-gray-900">Customer</h3>
-        <span className="text-sm text-gray-500">Search by phone or name</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-gray-900">Customer</h3>
+          <span className="text-sm text-gray-500">Search by phone or name</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleWalkInCustomer}
+            className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+          >
+            Walk-in Sale
+          </button>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-3 py-1.5 text-sm bg-bv-red-100 text-bv-red-700 rounded-lg hover:bg-bv-red-200 transition-colors flex items-center gap-1"
+          >
+            <UserPlus className="w-4 h-4" />
+            New Customer
+          </button>
+        </div>
       </div>
 
       {/* Search Input */}
