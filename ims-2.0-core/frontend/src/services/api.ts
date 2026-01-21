@@ -816,6 +816,249 @@ export const printApi = {
   },
 };
 
+// ============================================================================
+// Integrations API
+// ============================================================================
+
+export const integrationsApi = {
+  getDashboard: async () => {
+    const response = await api.get('/integrations/dashboard');
+    return response.data;
+  },
+
+  listIntegrations: async () => {
+    const response = await api.get('/integrations');
+    return response.data;
+  },
+
+  getIntegrationStatus: async (integrationType: string) => {
+    const response = await api.get(`/integrations/${integrationType}`);
+    return response.data;
+  },
+
+  configureIntegration: async (integrationType: string, credentials: Record<string, string>, settings?: Record<string, unknown>) => {
+    const response = await api.post(`/integrations/${integrationType}/configure`, { credentials, settings });
+    return response.data;
+  },
+
+  toggleIntegration: async (integrationType: string, enabled: boolean) => {
+    const response = await api.post(`/integrations/${integrationType}/toggle`, { enabled });
+    return response.data;
+  },
+
+  testConnection: async (integrationType: string) => {
+    const response = await api.post(`/integrations/${integrationType}/test`);
+    return response.data;
+  },
+
+  // Shopify
+  syncShopifyOrders: async () => {
+    const response = await api.post('/integrations/shopify/sync-orders');
+    return response.data;
+  },
+
+  syncShopifyInventory: async (products: Array<Record<string, unknown>>) => {
+    const response = await api.post('/integrations/shopify/sync-inventory', { products });
+    return response.data;
+  },
+
+  // Tally
+  exportToTally: async (invoices: Array<Record<string, unknown>>, voucherType = 'Sales') => {
+    const response = await api.post('/integrations/tally/export', { invoices, voucher_type: voucherType });
+    return response.data;
+  },
+
+  // Razorpay
+  createRazorpayOrder: async (amount: number, currency = 'INR', receipt?: string) => {
+    const response = await api.post('/integrations/razorpay/create-order', { amount, currency, receipt });
+    return response.data;
+  },
+
+  verifyRazorpayPayment: async (orderId: string, paymentId: string, signature: string) => {
+    const response = await api.post('/integrations/razorpay/verify-payment', { order_id: orderId, payment_id: paymentId, signature });
+    return response.data;
+  },
+
+  // WhatsApp
+  sendWhatsAppMessage: async (phone: string, template: string, params?: Record<string, string>) => {
+    const response = await api.post('/integrations/whatsapp/send-message', { phone, template, params });
+    return response.data;
+  },
+
+  sendOrderUpdate: async (phone: string, orderNumber: string, status: string) => {
+    const response = await api.post('/integrations/whatsapp/order-update', { phone, order_number: orderNumber, status });
+    return response.data;
+  },
+
+  // Shiprocket
+  createShipment: async (orderData: Record<string, unknown>) => {
+    const response = await api.post('/integrations/shiprocket/create-order', { order_data: orderData });
+    return response.data;
+  },
+
+  trackShipment: async (awb: string) => {
+    const response = await api.get(`/integrations/shiprocket/track/${awb}`);
+    return response.data;
+  },
+
+  // GST Portal
+  verifyGSTIN: async (gstin: string) => {
+    const response = await api.post('/integrations/gst/verify-gstin', { gstin });
+    return response.data;
+  },
+};
+
+// ============================================================================
+// AI Intelligence API
+// ============================================================================
+
+export const aiApi = {
+  // Dashboard
+  getDashboard: async () => {
+    const response = await api.get('/ai/dashboard');
+    return response.data;
+  },
+
+  // Insights
+  listInsights: async (params?: { category?: string; severity?: string; status?: string; limit?: number }) => {
+    const response = await api.get('/ai/insights', { params });
+    return response.data;
+  },
+
+  getInsight: async (insightId: string) => {
+    const response = await api.get(`/ai/insights/${insightId}`);
+    return response.data;
+  },
+
+  generateInsight: async (data: {
+    category: string;
+    severity: string;
+    title: string;
+    description: string;
+    dataPoints?: Record<string, unknown>;
+    recommendation?: string;
+  }) => {
+    const response = await api.post('/ai/insights/generate', data);
+    return response.data;
+  },
+
+  generateDailyInsights: async (data: Record<string, unknown>) => {
+    const response = await api.post('/ai/insights/generate-daily', data);
+    return response.data;
+  },
+
+  dismissInsight: async (insightId: string) => {
+    const response = await api.post(`/ai/insights/${insightId}/dismiss`);
+    return response.data;
+  },
+
+  markInsightActioned: async (insightId: string) => {
+    const response = await api.post(`/ai/insights/${insightId}/action`);
+    return response.data;
+  },
+
+  // Recommendations
+  listRecommendations: async (params?: { status?: string; recType?: string; limit?: number }) => {
+    const response = await api.get('/ai/recommendations', { params });
+    return response.data;
+  },
+
+  createRecommendation: async (data: {
+    recommendationType: string;
+    title: string;
+    description: string;
+    rationale: string;
+    expectedImpact: string;
+    implementationSteps: string[];
+  }) => {
+    const response = await api.post('/ai/recommendations/create', {
+      recommendation_type: data.recommendationType,
+      title: data.title,
+      description: data.description,
+      rationale: data.rationale,
+      expected_impact: data.expectedImpact,
+      implementation_steps: data.implementationSteps,
+    });
+    return response.data;
+  },
+
+  approveRecommendation: async (recommendationId: string) => {
+    const response = await api.post(`/ai/recommendations/${recommendationId}/approve`);
+    return response.data;
+  },
+
+  rejectRecommendation: async (recommendationId: string) => {
+    const response = await api.post(`/ai/recommendations/${recommendationId}/reject`);
+    return response.data;
+  },
+
+  // Patterns
+  listPatterns: async (acknowledged?: boolean) => {
+    const response = await api.get('/ai/patterns', { params: { acknowledged } });
+    return response.data;
+  },
+
+  detectPatterns: async (patternType: string, data: Array<Record<string, unknown>>) => {
+    const response = await api.post('/ai/patterns/detect', { pattern_type: patternType, data });
+    return response.data;
+  },
+
+  acknowledgePattern: async (patternId: string) => {
+    const response = await api.post(`/ai/patterns/${patternId}/acknowledge`);
+    return response.data;
+  },
+
+  // Ask Intelligence (Natural Language)
+  askIntelligence: async (query: string, contextData?: Record<string, unknown>) => {
+    const response = await api.post('/ai/ask', { query, context_data: contextData });
+    return response.data;
+  },
+
+  listQueries: async (limit = 50) => {
+    const response = await api.get('/ai/queries', { params: { limit } });
+    return response.data;
+  },
+
+  // Purchase Advisor
+  getPurchaseAdvice: async (productDescription: string, estimatedPrice: number, category: string) => {
+    const response = await api.post('/ai/purchase-advice', {
+      product_description: productDescription,
+      estimated_price: estimatedPrice,
+      category,
+    });
+    return response.data;
+  },
+
+  // Marketing Insights
+  getMarketingInsights: async () => {
+    const response = await api.get('/ai/marketing-insights');
+    return response.data;
+  },
+
+  // Forecasts
+  getSalesForecast: async (storeId?: string, days = 30) => {
+    const response = await api.get('/ai/forecasts/sales', { params: { store_id: storeId, days } });
+    return response.data;
+  },
+
+  getInventoryRecommendations: async (storeId?: string, category?: string) => {
+    const response = await api.get('/ai/forecasts/inventory', { params: { store_id: storeId, category } });
+    return response.data;
+  },
+
+  // Customer Segments
+  getCustomerSegments: async () => {
+    const response = await api.get('/ai/segments/customers');
+    return response.data;
+  },
+
+  // Staff Performance
+  getStaffPerformanceInsights: async (storeId?: string) => {
+    const response = await api.get('/ai/insights/staff-performance', { params: { store_id: storeId } });
+    return response.data;
+  },
+};
+
 // Named export alias for components using apiClient
 export { api as apiClient };
 

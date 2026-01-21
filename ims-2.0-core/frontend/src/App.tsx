@@ -22,6 +22,8 @@ import { TasksPage } from './pages/tasks/TasksPage';
 import { HRPage } from './pages/hr/HRPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { IntegrationsPage } from './pages/integrations/IntegrationsPage';
+import { AIPage } from './pages/ai/AIPage';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -190,6 +192,26 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                     <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Integrations */}
+              <Route
+                path="integrations"
+                element={
+                  <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                    <IntegrationsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* AI Intelligence */}
+              <Route
+                path="ai"
+                element={
+                  <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                    <AIPage />
                   </ProtectedRoute>
                 }
               />

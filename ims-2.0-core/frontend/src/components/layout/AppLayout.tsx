@@ -21,6 +21,8 @@ import {
   Store,
   Eye,
   ClipboardList,
+  Puzzle,
+  Brain,
 } from 'lucide-react';
 import clsx from 'clsx';
 import type { UserRole } from '../../types';
@@ -97,6 +99,18 @@ const navigationItems: NavItem[] = [
     path: '/settings',
     icon: Settings,
     allowedRoles: ['SUPERADMIN', 'ADMIN'],
+  },
+  {
+    label: 'Integrations',
+    path: '/integrations',
+    icon: Puzzle,
+    allowedRoles: ['SUPERADMIN', 'ADMIN'],
+  },
+  {
+    label: 'AI Intelligence',
+    path: '/ai',
+    icon: Brain,
+    allowedRoles: ['SUPERADMIN'],
   },
 ];
 

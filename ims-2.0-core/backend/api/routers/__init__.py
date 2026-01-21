@@ -17,6 +17,8 @@ from .hr import router as hr_router
 from .workshop import router as workshop_router
 from .reports import router as reports_router
 from .settings import router as settings_router
+from .integrations import router as integrations_router
+from .ai_intelligence import router as ai_router
 
 __all__ = [
     'auth_router',
@@ -33,5 +35,7 @@ __all__ = [
     'hr_router',
     'workshop_router',
     'reports_router',
-    'settings_router'
+    'settings_router',
+    'integrations_router',
+    'ai_router'
 ]

@@ -853,37 +853,204 @@ export interface DiscountSettings {
   requireApprovalAbove: number;
 }
 
+// Integration Types - All 10 Integrations
+export type IntegrationType =
+  | 'SHOPIFY'
+  | 'TALLY'
+  | 'RAZORPAY'
+  | 'WHATSAPP'
+  | 'SHIPROCKET'
+  | 'GOOGLE_ADS'
+  | 'META_ADS'
+  | 'GST_PORTAL'
+  | 'SMS_GATEWAY'
+  | 'EMAIL_SERVICE';
+
+export type IntegrationStatus = 'NOT_CONFIGURED' | 'CONFIGURED' | 'ACTIVE' | 'ERROR' | 'DISABLED';
+
+export interface IntegrationConfig {
+  type: IntegrationType;
+  name: string;
+  description: string;
+  status: IntegrationStatus;
+  isEnabled: boolean;
+  lastSync?: string;
+  lastError?: string;
+  syncInterval?: number;
+  recentSyncs?: { started: string; status: string; records: number }[];
+}
+
 export interface IntegrationSettings {
   shopify: {
     enabled: boolean;
     shopUrl?: string;
     apiKey?: string;
+    apiSecret?: string;
+    accessToken?: string;
     autoSync: boolean;
   };
   tally: {
     enabled: boolean;
+    serverUrl?: string;
     companyName?: string;
-    exportPath?: string;
+    port?: string;
   };
   shiprocket: {
     enabled: boolean;
     email?: string;
-    apiToken?: string;
+    password?: string;
+    pickupLocationId?: string;
   };
   whatsapp: {
     enabled: boolean;
     phoneNumberId?: string;
+    accessToken?: string;
     businessAccountId?: string;
   };
   razorpay: {
     enabled: boolean;
     keyId?: string;
+    keySecret?: string;
+    webhookSecret?: string;
     testMode: boolean;
   };
   gstPortal: {
     enabled: boolean;
     gstin?: string;
     username?: string;
+    apiKey?: string;
+  };
+  googleAds: {
+    enabled: boolean;
+    customerId?: string;
+    developerToken?: string;
+    refreshToken?: string;
+  };
+  metaAds: {
+    enabled: boolean;
+    appId?: string;
+    appSecret?: string;
+    accessToken?: string;
+    adAccountId?: string;
+  };
+  smsGateway: {
+    enabled: boolean;
+    apiKey?: string;
+    senderId?: string;
+    templateIds?: string[];
+  };
+  emailService: {
+    enabled: boolean;
+    smtpHost?: string;
+    smtpPort?: number;
+    username?: string;
+    password?: string;
+    fromEmail?: string;
+  };
+}
+
+// ============================================================================
+// AI Intelligence Types
+// ============================================================================
+
+export type InsightCategory = 'SALES' | 'INVENTORY' | 'DISCOUNT' | 'CLINICAL' | 'HR' | 'FINANCE' | 'CUSTOMER' | 'COMPLIANCE';
+export type InsightSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
+export type InsightStatus = 'NEW' | 'VIEWED' | 'ACTIONED' | 'DISMISSED';
+export type RecommendationType = 'STOCK_REORDER' | 'PRICE_ADJUSTMENT' | 'STAFF_TRAINING' | 'DISCOUNT_POLICY' | 'MARKETING_TARGET' | 'COMPLIANCE_FIX';
+export type RecommendationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'IMPLEMENTED';
+
+export interface AIInsight {
+  id: string;
+  category: InsightCategory;
+  severity: InsightSeverity;
+  title: string;
+  description: string;
+  dataPoints: Record<string, unknown>;
+  recommendation?: string;
+  status: InsightStatus;
+  affectedStores: string[];
+  affectedEmployees: string[];
+  createdAt: string;
+  viewedAt?: string;
+  actionedAt?: string;
+  actionedBy?: string;
+}
+
+export interface AIRecommendation {
+  id: string;
+  type: RecommendationType;
+  title: string;
+  description: string;
+  rationale: string;
+  expectedImpact: string;
+  implementationSteps: string[];
+  status: RecommendationStatus;
+  requiresApproval: boolean;
+  createdAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
+}
+
+export interface PatternDetection {
+  id: string;
+  patternType: string;
+  description: string;
+  occurrences: number;
+  firstDetected: string;
+  lastDetected: string;
+  entitiesInvolved: string[];
+  severity: InsightSeverity;
+  isAcknowledged: boolean;
+}
+
+export interface SalesForecast {
+  date: string;
+  predictedAmount: number;
+  confidence: number;
+  lowerBound: number;
+  upperBound: number;
+}
+
+export interface InventoryRecommendation {
+  productId: string;
+  productName: string;
+  category: ProductCategory;
+  currentStock: number;
+  predictedDemand: number;
+  reorderQuantity: number;
+  urgency: 'HIGH' | 'MEDIUM' | 'LOW';
+  reason: string;
+}
+
+export interface CustomerSegment {
+  segmentId: string;
+  name: string;
+  description: string;
+  customerCount: number;
+  avgOrderValue: number;
+  recommendedActions: string[];
+  churnRisk: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+export interface AIDashboard {
+  insights: {
+    total: number;
+    new: number;
+    critical: number;
+    recent: { title: string; severity: string; category: string }[];
+  };
+  recommendations: {
+    pending: number;
+    approved: number;
+    recent: { title: string; type: string; status: string }[];
+  };
+  patterns: {
+    total: number;
+    unacknowledged: number;
+  };
+  queries: {
+    total: number;
+    today: number;
   };
 }
 

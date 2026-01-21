@@ -4,7 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '../../services/api';
+import { aiApi } from '../../services/api';
 
 interface AIInsight {
   id: string;
@@ -103,8 +103,23 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
 
   const loadInsights = async () => {
     try {
-      const response = await apiClient.get(`/ai/insights?store_id=${storeId || ''}`);
-      setInsights(response.data || []);
+      const response = await aiApi.listInsights({ limit: 20 });
+      // Transform API response to component format
+      const transformedInsights = (response.insights || []).map((i: any) => ({
+        id: i.id,
+        type: i.severity === 'CRITICAL' ? 'alert' : i.severity === 'WARNING' ? 'risk' : 'recommendation',
+        category: i.category?.toLowerCase() || 'sales',
+        priority: i.severity === 'CRITICAL' ? 'high' : i.severity === 'WARNING' ? 'medium' : 'low',
+        title: i.title,
+        description: i.description,
+        impact: i.recommendation || 'Review recommended',
+        confidence: 85,
+        action_items: i.recommendation ? [i.recommendation] : [],
+        data_points: i.data_points || {},
+        created_at: i.created_at,
+        dismissed: i.status === 'DISMISSED'
+      }));
+      setInsights(transformedInsights.length > 0 ? transformedInsights : []);
     } catch (error) {
       // Mock data
       setInsights([
@@ -199,8 +214,16 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
 
   const loadPredictions = async () => {
     try {
-      const response = await apiClient.get(`/ai/predictions/sales?store_id=${storeId || ''}`);
-      setPredictions(response.data || []);
+      const response = await aiApi.getSalesForecast(storeId, 7);
+      // Transform API response to component format
+      const transformedPredictions = (response.forecasts || []).map((f: any) => ({
+        date: f.date,
+        predicted_revenue: f.predicted_amount || f.predictedAmount,
+        lower_bound: f.lower_bound || f.lowerBound,
+        upper_bound: f.upper_bound || f.upperBound,
+        factors: ['AI forecast based on historical data']
+      }));
+      setPredictions(transformedPredictions.length > 0 ? transformedPredictions : []);
     } catch (error) {
       // Mock 7-day forecast
       const today = new Date();
@@ -226,8 +249,18 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
 
   const loadInventoryRecommendations = async () => {
     try {
-      const response = await apiClient.get(`/ai/inventory/recommendations?store_id=${storeId || ''}`);
-      setInventoryRecs(response.data || []);
+      const response = await aiApi.getInventoryRecommendations(storeId);
+      // Transform API response to component format
+      const transformedRecs = (response.recommendations || []).map((r: any) => ({
+        sku: r.product_id || r.productId,
+        product_name: r.product_name || r.productName,
+        current_stock: r.current_stock || r.currentStock,
+        predicted_demand: r.predicted_demand || r.predictedDemand,
+        reorder_quantity: r.reorder_quantity || r.reorderQuantity,
+        urgency: (r.urgency || 'medium').toLowerCase(),
+        reason: r.reason
+      }));
+      setInventoryRecs(transformedRecs.length > 0 ? transformedRecs : []);
     } catch (error) {
       setInventoryRecs([
         {
@@ -272,8 +305,19 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
 
   const loadCustomerSegments = async () => {
     try {
-      const response = await apiClient.get(`/ai/customers/segments?store_id=${storeId || ''}`);
-      setCustomerSegments(response.data || []);
+      const response = await aiApi.getCustomerSegments();
+      // Transform API response to component format
+      const transformedSegments = (response.segments || []).map((s: any) => ({
+        segment_id: s.segment_id || s.segmentId,
+        name: s.name,
+        description: s.description,
+        customer_count: s.customer_count || s.customerCount,
+        avg_order_value: s.avg_order_value || s.avgOrderValue,
+        purchase_frequency: 1.5, // Default
+        churn_risk: s.churn_risk === 'HIGH' ? 0.7 : s.churn_risk === 'MEDIUM' ? 0.4 : 0.1,
+        recommended_actions: s.recommended_actions || s.recommendedActions || []
+      }));
+      setCustomerSegments(transformedSegments.length > 0 ? transformedSegments : []);
     } catch (error) {
       setCustomerSegments([
         {
@@ -338,8 +382,21 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
 
   const loadStaffInsights = async () => {
     try {
-      const response = await apiClient.get(`/ai/staff/insights?store_id=${storeId || ''}`);
-      setStaffInsights(response.data || []);
+      const response = await aiApi.getStaffPerformanceInsights(storeId);
+      // Transform API response to component format
+      const insights = response.insights || {};
+      const topPerformers = insights.top_performers || [];
+      const improvementAreas = insights.improvement_areas || [];
+      const allStaff = [...topPerformers, ...improvementAreas].map((s: any) => ({
+        employee_id: s.staff_id || s.staffId,
+        employee_name: s.name,
+        performance_score: s.metrics?.sales_this_month ? Math.min(100, Math.round(s.metrics.conversion_rate || 75)) : 75,
+        trend: s.metrics?.conversion_rate > 70 ? 'improving' : s.areas ? 'declining' : 'stable',
+        strengths: s.strengths || [],
+        areas_for_improvement: s.areas || [],
+        recommended_training: s.recommended_training || s.recommendedTraining || []
+      }));
+      setStaffInsights(allStaff.length > 0 ? allStaff : []);
     } catch (error) {
       setStaffInsights([
         {
@@ -375,7 +432,7 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
 
   const handleDismissInsight = async (insightId: string) => {
     try {
-      await apiClient.post(`/ai/insights/${insightId}/dismiss`);
+      await aiApi.dismissInsight(insightId);
       setInsights(prev =>
         prev.map(i => i.id === insightId ? { ...i, dismissed: true } : i)
       );
