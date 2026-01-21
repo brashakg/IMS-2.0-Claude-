@@ -2,11 +2,17 @@
 // IMS 2.0 - Inline Prescription Panel for POS
 // ============================================================================
 // Displays prescription details directly on POS with Copy R→L functionality
+// Includes prescription axis validation (1-180, whole numbers only)
 
 import { useState, useCallback } from 'react';
-import { Copy, Eye, Plus, FileText, ArrowRight } from 'lucide-react';
+import { Copy, Eye, Plus, FileText, ArrowRight, AlertCircle } from 'lucide-react';
 import type { Prescription, EyePower } from '../../types';
 import clsx from 'clsx';
+import {
+  validateAxisRealtime,
+  sanitizeAxisInput,
+  getAxisInputHint,
+} from '../../utils/prescriptionValidation';
 
 interface PrescriptionPanelProps {
   prescription: Prescription | null;
@@ -64,19 +70,57 @@ export function PrescriptionPanel({
       : defaultEye
   );
 
+  // Axis validation state
+  const [rightAxisError, setRightAxisError] = useState<string | undefined>();
+  const [leftAxisError, setLeftAxisError] = useState<string | undefined>();
+
   // Copy Right eye values to Left eye
   const handleCopyRightToLeft = useCallback(() => {
     setLeftEye({ ...rightEye });
   }, [rightEye]);
 
-  // Update right eye field
+  // Update right eye field with axis validation
   const updateRightEye = (field: keyof EyeFieldValue, value: string) => {
     setRightEye(prev => ({ ...prev, [field]: value }));
+
+    // Validate axis in real-time
+    if (field === 'axis') {
+      const cylinderValue = rightEye.cylinder ? parseFloat(rightEye.cylinder) : null;
+      const validation = validateAxisRealtime(value, cylinderValue);
+
+      if (!validation.isValid && value !== '') {
+        setRightAxisError(validation.error);
+      } else {
+        setRightAxisError(undefined);
+      }
+    }
+
+    // Clear axis error if cylinder is changed/cleared
+    if (field === 'cylinder') {
+      setRightAxisError(undefined);
+    }
   };
 
-  // Update left eye field
+  // Update left eye field with axis validation
   const updateLeftEye = (field: keyof EyeFieldValue, value: string) => {
     setLeftEye(prev => ({ ...prev, [field]: value }));
+
+    // Validate axis in real-time
+    if (field === 'axis') {
+      const cylinderValue = leftEye.cylinder ? parseFloat(leftEye.cylinder) : null;
+      const validation = validateAxisRealtime(value, cylinderValue);
+
+      if (!validation.isValid && value !== '') {
+        setLeftAxisError(validation.error);
+      } else {
+        setLeftAxisError(undefined);
+      }
+    }
+
+    // Clear axis error if cylinder is changed/cleared
+    if (field === 'cylinder') {
+      setLeftAxisError(undefined);
+    }
   };
 
   // Save prescription changes
@@ -187,15 +231,37 @@ export function PrescriptionPanel({
                 />
               </td>
               <td className="py-2 px-1">
-                <input
-                  type="number"
-                  min="1"
-                  max="180"
-                  value={rightEye.axis}
-                  onChange={e => updateRightEye('axis', e.target.value)}
-                  className="w-14 px-2 py-1 text-center text-sm border border-gray-200 rounded focus:border-bv-red-500 focus:outline-none"
-                  placeholder="180"
-                />
+                <div className="flex flex-col gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="180"
+                    step="1"
+                    value={rightEye.axis}
+                    onChange={e => updateRightEye('axis', e.target.value)}
+                    onBlur={e => {
+                      // Sanitize axis on blur (round to whole number, clamp to 1-180)
+                      const sanitized = sanitizeAxisInput(e.target.value);
+                      if (sanitized !== null && sanitized.toString() !== e.target.value) {
+                        updateRightEye('axis', sanitized.toString());
+                      }
+                    }}
+                    className={clsx(
+                      'w-14 px-2 py-1 text-center text-sm border rounded focus:outline-none',
+                      rightAxisError
+                        ? 'border-red-500 bg-red-50 focus:border-red-600'
+                        : 'border-gray-200 focus:border-bv-red-500'
+                    )}
+                    placeholder="180"
+                    title={getAxisInputHint()}
+                  />
+                  {rightAxisError && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{rightAxisError}</span>
+                    </div>
+                  )}
+                </div>
               </td>
               <td className="py-2 px-1">
                 <input
@@ -244,15 +310,37 @@ export function PrescriptionPanel({
                 />
               </td>
               <td className="py-2 px-1">
-                <input
-                  type="number"
-                  min="1"
-                  max="180"
-                  value={leftEye.axis}
-                  onChange={e => updateLeftEye('axis', e.target.value)}
-                  className="w-14 px-2 py-1 text-center text-sm border border-gray-200 rounded focus:border-bv-red-500 focus:outline-none"
-                  placeholder="180"
-                />
+                <div className="flex flex-col gap-1">
+                  <input
+                    type="number"
+                    min="1"
+                    max="180"
+                    step="1"
+                    value={leftEye.axis}
+                    onChange={e => updateLeftEye('axis', e.target.value)}
+                    onBlur={e => {
+                      // Sanitize axis on blur (round to whole number, clamp to 1-180)
+                      const sanitized = sanitizeAxisInput(e.target.value);
+                      if (sanitized !== null && sanitized.toString() !== e.target.value) {
+                        updateLeftEye('axis', sanitized.toString());
+                      }
+                    }}
+                    className={clsx(
+                      'w-14 px-2 py-1 text-center text-sm border rounded focus:outline-none',
+                      leftAxisError
+                        ? 'border-red-500 bg-red-50 focus:border-red-600'
+                        : 'border-gray-200 focus:border-bv-red-500'
+                    )}
+                    placeholder="180"
+                    title={getAxisInputHint()}
+                  />
+                  {leftAxisError && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{leftAxisError}</span>
+                    </div>
+                  )}
+                </div>
               </td>
               <td className="py-2 px-1">
                 <input
