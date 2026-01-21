@@ -135,7 +135,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")  # Max 5 login attempts per minute
-async def login(request: LoginRequest, req: Request):
+async def login(login_request: LoginRequest, request: Request):
     """
     Authenticate user and return JWT token
     Validates geo-location for store staff
@@ -144,7 +144,7 @@ async def login(request: LoginRequest, req: Request):
     repo = get_user_repository()
 
     # Lookup user by username
-    user = repo.find_by_username(request.username)
+    user = repo.find_by_username(login_request.username)
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
