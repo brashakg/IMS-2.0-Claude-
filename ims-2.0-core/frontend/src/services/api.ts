@@ -374,4 +374,446 @@ export const hrApi = {
   },
 };
 
+// ============================================================================
+// Task API
+// ============================================================================
+
+export const taskApi = {
+  getTasks: async (params?: { storeId?: string; status?: string; assignedTo?: string; priority?: string }) => {
+    const response = await api.get('/tasks', { params });
+    return response.data;
+  },
+
+  getTask: async (taskId: string) => {
+    const response = await api.get(`/tasks/${taskId}`);
+    return response.data;
+  },
+
+  createTask: async (data: Partial<import('../types').Task>) => {
+    const response = await api.post('/tasks', data);
+    return response.data;
+  },
+
+  updateTask: async (taskId: string, data: Partial<import('../types').Task>) => {
+    const response = await api.patch(`/tasks/${taskId}`, data);
+    return response.data;
+  },
+
+  completeTask: async (taskId: string, remarks?: string) => {
+    const response = await api.post(`/tasks/${taskId}/complete`, { remarks });
+    return response.data;
+  },
+
+  escalateTask: async (taskId: string, reason: string, escalateTo?: string) => {
+    const response = await api.post(`/tasks/${taskId}/escalate`, { reason, escalate_to: escalateTo });
+    return response.data;
+  },
+
+  reassignTask: async (taskId: string, assignTo: string) => {
+    const response = await api.post(`/tasks/${taskId}/reassign`, { assign_to: assignTo });
+    return response.data;
+  },
+
+  getMyTasks: async (status?: string) => {
+    const response = await api.get('/tasks/my', { params: { status } });
+    return response.data;
+  },
+
+  getEscalatedTasks: async () => {
+    const response = await api.get('/tasks/escalated');
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Discount Approval API
+// ============================================================================
+
+export const approvalApi = {
+  requestDiscountApproval: async (data: {
+    orderId?: string;
+    orderItemId?: string;
+    productId: string;
+    productName: string;
+    mrp: number;
+    offerPrice: number;
+    requestedDiscount: number;
+    reason: string;
+  }) => {
+    const response = await api.post('/approvals/discount', data);
+    return response.data;
+  },
+
+  getPendingApprovals: async (storeId?: string) => {
+    const response = await api.get('/approvals/discount/pending', { params: { store_id: storeId } });
+    return response.data;
+  },
+
+  approveDiscount: async (approvalId: string, approvedDiscount: number, remarks?: string) => {
+    const response = await api.post(`/approvals/discount/${approvalId}/approve`, {
+      approved_discount: approvedDiscount,
+      remarks,
+    });
+    return response.data;
+  },
+
+  rejectDiscount: async (approvalId: string, remarks: string) => {
+    const response = await api.post(`/approvals/discount/${approvalId}/reject`, { remarks });
+    return response.data;
+  },
+
+  getApprovalHistory: async (params?: { storeId?: string; status?: string; startDate?: string; endDate?: string }) => {
+    const response = await api.get('/approvals/discount/history', { params });
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Stock Transfer API
+// ============================================================================
+
+export const transferApi = {
+  getTransfers: async (storeId: string, direction: 'incoming' | 'outgoing' | 'all') => {
+    const response = await api.get('/inventory/transfers', { params: { store_id: storeId, direction } });
+    return response.data;
+  },
+
+  getTransfer: async (transferId: string) => {
+    const response = await api.get(`/inventory/transfers/${transferId}`);
+    return response.data;
+  },
+
+  createTransfer: async (data: {
+    fromStoreId: string;
+    toStoreId: string;
+    items: Array<{ stockUnitId: string; quantity: number }>;
+  }) => {
+    const response = await api.post('/inventory/transfers', data);
+    return response.data;
+  },
+
+  approveTransfer: async (transferId: string) => {
+    const response = await api.post(`/inventory/transfers/${transferId}/approve`);
+    return response.data;
+  },
+
+  confirmBarcodeRemoval: async (transferId: string) => {
+    const response = await api.post(`/inventory/transfers/${transferId}/confirm-barcode-removal`);
+    return response.data;
+  },
+
+  sendTransfer: async (transferId: string) => {
+    const response = await api.post(`/inventory/transfers/${transferId}/send`);
+    return response.data;
+  },
+
+  receiveTransfer: async (transferId: string, items: Array<{ itemId: string; receivedQuantity: number; mismatchReason?: string }>) => {
+    const response = await api.post(`/inventory/transfers/${transferId}/receive`, { items });
+    return response.data;
+  },
+
+  completeTransfer: async (transferId: string) => {
+    const response = await api.post(`/inventory/transfers/${transferId}/complete`);
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Stock Count API
+// ============================================================================
+
+export const stockCountApi = {
+  getCounts: async (storeId: string, status?: string) => {
+    const response = await api.get('/inventory/counts', { params: { store_id: storeId, status } });
+    return response.data;
+  },
+
+  getCount: async (countId: string) => {
+    const response = await api.get(`/inventory/counts/${countId}`);
+    return response.data;
+  },
+
+  startCount: async (storeId: string, category?: string, locationCode?: string) => {
+    const response = await api.post('/inventory/counts', { store_id: storeId, category, location_code: locationCode });
+    return response.data;
+  },
+
+  scanItem: async (countId: string, barcode: string, physicalQuantity: number, notes?: string) => {
+    const response = await api.post(`/inventory/counts/${countId}/scan`, { barcode, physical_quantity: physicalQuantity, notes });
+    return response.data;
+  },
+
+  submitCount: async (countId: string) => {
+    const response = await api.post(`/inventory/counts/${countId}/submit`);
+    return response.data;
+  },
+
+  approveCount: async (countId: string, adjustStock: boolean) => {
+    const response = await api.post(`/inventory/counts/${countId}/approve`, { adjust_stock: adjustStock });
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Payroll API
+// ============================================================================
+
+export const payrollApi = {
+  getPayrolls: async (params?: { storeId?: string; month?: number; year?: number; status?: string }) => {
+    const response = await api.get('/hr/payroll', { params });
+    return response.data;
+  },
+
+  getPayroll: async (payrollId: string) => {
+    const response = await api.get(`/hr/payroll/${payrollId}`);
+    return response.data;
+  },
+
+  calculatePayroll: async (userId: string, month: number, year: number) => {
+    const response = await api.post('/hr/payroll/calculate', { user_id: userId, month, year });
+    return response.data;
+  },
+
+  calculateStorePayroll: async (storeId: string, month: number, year: number) => {
+    const response = await api.post('/hr/payroll/calculate-store', { store_id: storeId, month, year });
+    return response.data;
+  },
+
+  approvePayroll: async (payrollId: string) => {
+    const response = await api.post(`/hr/payroll/${payrollId}/approve`);
+    return response.data;
+  },
+
+  markPaid: async (payrollId: string, paymentRef: string) => {
+    const response = await api.post(`/hr/payroll/${payrollId}/mark-paid`, { payment_ref: paymentRef });
+    return response.data;
+  },
+
+  getSalarySlip: async (payrollId: string) => {
+    const response = await api.get(`/hr/payroll/${payrollId}/slip`);
+    return response.data;
+  },
+
+  getLeaveBalance: async (userId: string, year?: number) => {
+    const response = await api.get(`/hr/leave-balance/${userId}`, { params: { year } });
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Target & Incentive API
+// ============================================================================
+
+export const targetApi = {
+  getTargets: async (params?: { storeId?: string; userId?: string; month?: number; year?: number }) => {
+    const response = await api.get('/hr/targets', { params });
+    return response.data;
+  },
+
+  setTarget: async (userId: string, month: number, year: number, targetAmount: number) => {
+    const response = await api.post('/hr/targets', { user_id: userId, month, year, target_amount: targetAmount });
+    return response.data;
+  },
+
+  getMyTarget: async (month?: number, year?: number) => {
+    const response = await api.get('/hr/targets/my', { params: { month, year } });
+    return response.data;
+  },
+
+  getIncentiveSlabs: async () => {
+    const response = await api.get('/hr/incentive-slabs');
+    return response.data;
+  },
+
+  setIncentiveSlabs: async (slabs: Array<{ minPercent: number; maxPercent: number; incentivePercent: number }>) => {
+    const response = await api.post('/hr/incentive-slabs', { slabs });
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Settings API
+// ============================================================================
+
+export const settingsApi = {
+  getStoreSettings: async (storeId: string) => {
+    const response = await api.get(`/settings/store/${storeId}`);
+    return response.data;
+  },
+
+  updateStoreSettings: async (storeId: string, settings: Partial<import('../types').StoreSettings>) => {
+    const response = await api.patch(`/settings/store/${storeId}`, settings);
+    return response.data;
+  },
+
+  getDiscountSettings: async () => {
+    const response = await api.get('/settings/discounts');
+    return response.data;
+  },
+
+  updateDiscountSettings: async (settings: Partial<import('../types').DiscountSettings>) => {
+    const response = await api.patch('/settings/discounts', settings);
+    return response.data;
+  },
+
+  getIntegrationSettings: async () => {
+    const response = await api.get('/settings/integrations');
+    return response.data;
+  },
+
+  updateIntegrationSettings: async (integration: string, settings: Record<string, unknown>) => {
+    const response = await api.patch(`/settings/integrations/${integration}`, settings);
+    return response.data;
+  },
+
+  testIntegration: async (integration: string) => {
+    const response = await api.post(`/settings/integrations/${integration}/test`);
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Outstanding/Credit API
+// ============================================================================
+
+export const outstandingApi = {
+  getOutstanding: async (params?: { storeId?: string; agingBucket?: string }) => {
+    const response = await api.get('/finance/outstanding', { params });
+    return response.data;
+  },
+
+  getCustomerOutstanding: async (customerId: string) => {
+    const response = await api.get(`/finance/outstanding/${customerId}`);
+    return response.data;
+  },
+
+  getAgingReport: async (storeId?: string) => {
+    const response = await api.get('/finance/outstanding/aging', { params: { store_id: storeId } });
+    return response.data;
+  },
+
+  recordPayment: async (orderId: string, payment: Partial<import('../types').Payment>) => {
+    const response = await api.post(`/orders/${orderId}/payments`, payment);
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Employee Self-Service API
+// ============================================================================
+
+export const selfServiceApi = {
+  getMyDashboard: async () => {
+    const response = await api.get('/self-service/dashboard');
+    return response.data;
+  },
+
+  getMyAttendance: async (month?: number, year?: number) => {
+    const response = await api.get('/self-service/attendance', { params: { month, year } });
+    return response.data;
+  },
+
+  getMyLeaveBalance: async () => {
+    const response = await api.get('/self-service/leave-balance');
+    return response.data;
+  },
+
+  getMySalarySlips: async () => {
+    const response = await api.get('/self-service/salary-slips');
+    return response.data;
+  },
+
+  getMyAssignedStock: async () => {
+    const response = await api.get('/self-service/assigned-stock');
+    return response.data;
+  },
+
+  getMyTarget: async () => {
+    const response = await api.get('/self-service/target');
+    return response.data;
+  },
+};
+
+// ============================================================================
+// GRN (Goods Receipt Note) API
+// ============================================================================
+
+export const grnApi = {
+  getPendingGRN: async (storeId: string) => {
+    const response = await api.get('/vendors/grn/pending', { params: { store_id: storeId } });
+    return response.data;
+  },
+
+  getGRN: async (grnId: string) => {
+    const response = await api.get(`/vendors/grn/${grnId}`);
+    return response.data;
+  },
+
+  verifyGRNItem: async (grnId: string, itemId: string, receivedQty: number) => {
+    const response = await api.post(`/vendors/grn/${grnId}/items/${itemId}/verify`, { received_qty: receivedQty });
+    return response.data;
+  },
+
+  assignLocation: async (grnId: string, itemId: string, locationCode: string) => {
+    const response = await api.post(`/vendors/grn/${grnId}/items/${itemId}/location`, { location_code: locationCode });
+    return response.data;
+  },
+
+  printBarcode: async (grnId: string, itemId: string) => {
+    const response = await api.post(`/vendors/grn/${grnId}/items/${itemId}/print-barcode`);
+    return response.data;
+  },
+
+  acceptGRN: async (grnId: string) => {
+    const response = await api.post(`/vendors/grn/${grnId}/accept`);
+    return response.data;
+  },
+
+  escalateMismatch: async (grnId: string, itemId: string, notes: string) => {
+    const response = await api.post(`/vendors/grn/${grnId}/items/${itemId}/escalate`, { notes });
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Print API
+// ============================================================================
+
+export const printApi = {
+  generateInvoice: async (orderId: string) => {
+    const response = await api.get(`/print/invoice/${orderId}`, { responseType: 'blob' });
+    return response.data;
+  },
+
+  generateDeliveryChallan: async (transferId: string) => {
+    const response = await api.get(`/print/challan/${transferId}`, { responseType: 'blob' });
+    return response.data;
+  },
+
+  generateBarcode: async (stockUnitId: string) => {
+    const response = await api.get(`/print/barcode/${stockUnitId}`, { responseType: 'blob' });
+    return response.data;
+  },
+
+  generatePrescription: async (prescriptionId: string) => {
+    const response = await api.get(`/print/prescription/${prescriptionId}`, { responseType: 'blob' });
+    return response.data;
+  },
+
+  generateJobCard: async (jobId: string) => {
+    const response = await api.get(`/print/job-card/${jobId}`, { responseType: 'blob' });
+    return response.data;
+  },
+
+  generateSalarySlip: async (payrollId: string) => {
+    const response = await api.get(`/print/salary-slip/${payrollId}`, { responseType: 'blob' });
+    return response.data;
+  },
+
+  generateEstimate: async (orderId: string) => {
+    const response = await api.get(`/print/estimate/${orderId}`, { responseType: 'blob' });
+    return response.data;
+  },
+};
+
 export default api;
