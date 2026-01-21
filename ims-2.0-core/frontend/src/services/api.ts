@@ -56,7 +56,15 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    const response = await api.post<LoginResponse>('/auth/login', credentials);
+    // Backend expects 'username' instead of 'email'
+    const payload = {
+      username: credentials.email,
+      password: credentials.password,
+      store_id: credentials.storeId,
+      latitude: credentials.latitude,
+      longitude: credentials.longitude,
+    };
+    const response = await api.post<LoginResponse>('/auth/login', payload);
     return response.data;
   },
 
