@@ -69,10 +69,26 @@ export const authApi = {
     const response = await api.post<any>('/auth/login', payload);
     
     // Transform backend response to match frontend expectations
+    const backendUser = response.data.user;
+    const transformedUser = {
+      id: backendUser.user_id,
+      email: backendUser.email,
+      name: backendUser.full_name || backendUser.username,
+      phone: backendUser.phone || '',
+      roles: backendUser.roles,
+      activeRole: backendUser.roles[0], // Use first role as active
+      storeIds: backendUser.accessible_stores || [],
+      activeStoreId: backendUser.active_store_id || '',
+      discountCap: backendUser.discount_cap || 0,
+      isActive: true,
+      geoRestricted: false,
+      createdAt: new Date().toISOString(),
+    };
+    
     return {
       success: response.data.success || true,
       token: response.data.access_token, // Backend sends access_token
-      user: response.data.user,
+      user: transformedUser,
       message: response.data.message,
     };
   },
