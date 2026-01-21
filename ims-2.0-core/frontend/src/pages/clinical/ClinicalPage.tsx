@@ -1,0 +1,329 @@
+// ============================================================================
+// IMS 2.0 - Clinical / Eye Tests Page
+// ============================================================================
+
+import { useState } from 'react';
+import {
+  Eye,
+  User,
+  Clock,
+  CheckCircle,
+  Play,
+  Plus,
+  Search,
+  FileText,
+  Calendar,
+  Phone,
+  ChevronRight,
+} from 'lucide-react';
+import clsx from 'clsx';
+
+// Mock queue data
+const mockQueue = [
+  {
+    id: 'q-001',
+    tokenNumber: 'T-001',
+    patientName: 'Rajesh Kumar',
+    customerPhone: '9876543210',
+    age: 39,
+    reason: 'New Glasses',
+    status: 'WAITING' as const,
+    waitTime: 15,
+    createdAt: '2025-01-21T10:00:00Z',
+  },
+  {
+    id: 'q-002',
+    tokenNumber: 'T-002',
+    patientName: 'Priya Sharma',
+    customerPhone: '9988776655',
+    age: 28,
+    reason: 'Eye Strain',
+    status: 'IN_PROGRESS' as const,
+    waitTime: 5,
+    createdAt: '2025-01-21T10:15:00Z',
+  },
+  {
+    id: 'q-003',
+    tokenNumber: 'T-003',
+    patientName: 'Arjun Mehta',
+    customerPhone: '9123456789',
+    age: 45,
+    reason: 'Progressive Lenses',
+    status: 'WAITING' as const,
+    waitTime: 8,
+    createdAt: '2025-01-21T10:22:00Z',
+  },
+  {
+    id: 'q-004',
+    tokenNumber: 'T-004',
+    patientName: 'Sunita Das',
+    customerPhone: '9876512345',
+    age: 52,
+    reason: 'Contact Lens Fitting',
+    status: 'WAITING' as const,
+    waitTime: 3,
+    createdAt: '2025-01-21T10:27:00Z',
+  },
+];
+
+// Mock completed tests today
+const mockCompletedToday = [
+  {
+    id: 'rx-t001',
+    patientName: 'Amit Singh',
+    customerPhone: '9876500001',
+    completedAt: '2025-01-21T09:45:00Z',
+    rightEye: { sphere: -1.50, cylinder: -0.50, axis: 90 },
+    leftEye: { sphere: -1.75, cylinder: -0.25, axis: 85 },
+  },
+  {
+    id: 'rx-t002',
+    patientName: 'Neha Gupta',
+    customerPhone: '9876500002',
+    completedAt: '2025-01-21T09:15:00Z',
+    rightEye: { sphere: +0.50, cylinder: null, axis: null },
+    leftEye: { sphere: +0.75, cylinder: -0.25, axis: 180 },
+  },
+];
+
+type QueueStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
+
+const STATUS_CONFIG: Record<QueueStatus, { label: string; class: string }> = {
+  WAITING: { label: 'Waiting', class: 'bg-yellow-100 text-yellow-600' },
+  IN_PROGRESS: { label: 'In Progress', class: 'bg-blue-100 text-blue-600' },
+  COMPLETED: { label: 'Completed', class: 'bg-green-100 text-green-600' },
+};
+
+export function ClinicalPage() {
+  const [activeTab, setActiveTab] = useState<'queue' | 'completed'>('queue');
+  const [showNewTestModal, setShowNewTestModal] = useState(false);
+
+  const waitingCount = mockQueue.filter(q => q.status === 'WAITING').length;
+  const inProgressCount = mockQueue.filter(q => q.status === 'IN_PROGRESS').length;
+  const completedCount = mockCompletedToday.length;
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatPower = (value: number | null) => {
+    if (value === null) return '-';
+    return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Eye Tests</h1>
+          <p className="text-gray-500">Manage patient queue and eye examinations</p>
+        </div>
+        <button
+          onClick={() => setShowNewTestModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          New Patient
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="card">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Clock className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Waiting</p>
+              <p className="text-2xl font-bold text-yellow-600">{waitingCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Eye className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">In Progress</p>
+              <p className="text-2xl font-bold text-blue-600">{inProgressCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Completed Today</p>
+              <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('queue')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'queue'
+              ? 'border-bv-red-600 text-bv-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          )}
+        >
+          <Clock className="w-4 h-4" />
+          Queue ({waitingCount + inProgressCount})
+        </button>
+        <button
+          onClick={() => setActiveTab('completed')}
+          className={clsx(
+            'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+            activeTab === 'completed'
+              ? 'border-bv-red-600 text-bv-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          )}
+        >
+          <CheckCircle className="w-4 h-4" />
+          Completed Today ({completedCount})
+        </button>
+      </div>
+
+      {/* Queue Tab */}
+      {activeTab === 'queue' && (
+        <div className="space-y-3">
+          {mockQueue.length === 0 ? (
+            <div className="card text-center py-12 text-gray-500">
+              <Eye className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No patients in queue</p>
+            </div>
+          ) : (
+            mockQueue.map((item, index) => {
+              const statusConfig = STATUS_CONFIG[item.status];
+              return (
+                <div
+                  key={item.id}
+                  className={clsx(
+                    'card',
+                    item.status === 'IN_PROGRESS' && 'border-blue-300 bg-blue-50'
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {/* Token Number */}
+                      <div className={clsx(
+                        'w-14 h-14 rounded-lg flex items-center justify-center font-bold text-lg',
+                        item.status === 'IN_PROGRESS'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      )}>
+                        {item.tokenNumber}
+                      </div>
+
+                      {/* Patient Info */}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900">{item.patientName}</p>
+                          <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium', statusConfig.class)}>
+                            {statusConfig.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {item.customerPhone}
+                          </span>
+                          <span>Age: {item.age}</span>
+                          <span>{item.reason}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {/* Wait Time */}
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">Wait Time</p>
+                        <p className={clsx(
+                          'font-medium',
+                          item.waitTime > 10 ? 'text-red-600' : 'text-gray-600'
+                        )}>
+                          {item.waitTime} min
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      {item.status === 'WAITING' && (
+                        <button className="btn-primary flex items-center gap-2">
+                          <Play className="w-4 h-4" />
+                          Start Test
+                        </button>
+                      )}
+                      {item.status === 'IN_PROGRESS' && (
+                        <button className="btn-primary flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          Continue
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Completed Tab */}
+      {activeTab === 'completed' && (
+        <div className="card overflow-hidden">
+          {mockCompletedToday.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No tests completed today</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {mockCompletedToday.map(test => (
+                <div key={test.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{test.patientName}</p>
+                        <p className="text-sm text-gray-500">
+                          Completed at {formatTime(test.completedAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Rx Preview */}
+                    <div className="flex items-center gap-6">
+                      <div className="text-sm">
+                        <p className="text-gray-500">R: {formatPower(test.rightEye.sphere)} / {formatPower(test.rightEye.cylinder)}</p>
+                        <p className="text-gray-500">L: {formatPower(test.leftEye.sphere)} / {formatPower(test.leftEye.cylinder)}</p>
+                      </div>
+                      <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors">
+                        <FileText className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default ClinicalPage;
