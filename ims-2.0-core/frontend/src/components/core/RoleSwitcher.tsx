@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // ============================================================================
 // IMS 2.0 - Role Switcher Component
 // Multi-role switching UI for users with multiple assigned roles

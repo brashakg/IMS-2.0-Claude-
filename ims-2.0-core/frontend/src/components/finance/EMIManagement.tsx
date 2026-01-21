@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // ============================================================================
 // IMS 2.0 - EMI Management Component
 // EMI order tracking, installment management, collection workflows

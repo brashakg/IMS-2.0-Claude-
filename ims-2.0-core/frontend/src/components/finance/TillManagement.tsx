@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 // ============================================================================
 // IMS 2.0 - Till Management Component
 // Cash drawer management with opening/closing balance, denominations

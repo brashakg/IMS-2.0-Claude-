@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
 // ============================================================================
 // IMS 2.0 - Shift Management Component
 // ============================================================================

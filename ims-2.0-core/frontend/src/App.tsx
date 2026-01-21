@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { MockDataProvider } from './context/MockDataContext';
+import { ProductMasterDataProvider } from './context/ProductMasterDataContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
@@ -68,6 +69,7 @@ function App() {
       <ToastProvider>
         <AuthProvider>
           <MockDataProvider>
+          <ProductMasterDataProvider>
             <BrowserRouter>
             <Routes>
             {/* Public routes */}
@@ -223,6 +225,7 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
             </Routes>
             </BrowserRouter>
+          </ProductMasterDataProvider>
           </MockDataProvider>
         </AuthProvider>
       </ToastProvider>

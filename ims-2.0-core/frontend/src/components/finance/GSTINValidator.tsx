@@ -101,14 +101,6 @@ export const GSTINValidator: React.FC<Props> = ({
     }
   }, [value]);
 
-  useEffect(() => {
-    if (autoValidate && gstin.length === 15) {
-      validateGSTIN();
-    } else if (gstin.length < 15) {
-      setValidationResult(null);
-    }
-  }, [gstin, autoValidate]);
-
   const validateFormat = (gstinValue: string): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
@@ -231,6 +223,16 @@ export const GSTINValidator: React.FC<Props> = ({
     onValidation?.(result);
     setLoading(false);
   };
+
+  // Auto-validation effect
+  useEffect(() => {
+    if (autoValidate && gstin.length === 15) {
+      validateGSTIN();
+    } else if (gstin.length < 15) {
+      setValidationResult(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gstin, autoValidate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);

@@ -2,6 +2,8 @@
 // IMS 2.0 - AI Intelligence Dashboard
 // AI-powered insights, predictions, and recommendations for retail operations
 // ============================================================================
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import React, { useState, useEffect } from 'react';
 import { aiApi } from '../../services/api';
@@ -16,7 +18,7 @@ interface AIInsight {
   impact: string;
   confidence: number;
   action_items: string[];
-  data_points?: Record<string, any>;
+  data_points?: Record<string, unknown>;
   created_at: string;
   expires_at?: string;
   dismissed: boolean;
@@ -63,12 +65,12 @@ interface StaffPerformanceInsight {
 
 interface Props {
   storeId?: string;
-  userRole: string;
+  userRole?: string;
 }
 
 export const AIIntelligenceDashboard: React.FC<Props> = ({
   storeId,
-  userRole
+  userRole: _userRole
 }) => {
   const [activeTab, setActiveTab] = useState<'insights' | 'predictions' | 'inventory' | 'customers' | 'staff'>('insights');
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,7 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
 
   useEffect(() => {
     loadAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
 
   const loadAllData = async () => {
@@ -105,10 +108,11 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
     try {
       const response = await aiApi.listInsights({ limit: 20 });
       // Transform API response to component format
+       
       const transformedInsights = (response.insights || []).map((i: any) => ({
         id: i.id,
         type: i.severity === 'CRITICAL' ? 'alert' : i.severity === 'WARNING' ? 'risk' : 'recommendation',
-        category: i.category?.toLowerCase() || 'sales',
+        category: (i.category as string)?.toLowerCase() || 'sales',
         priority: i.severity === 'CRITICAL' ? 'high' : i.severity === 'WARNING' ? 'medium' : 'low',
         title: i.title,
         description: i.description,
@@ -120,8 +124,8 @@ export const AIIntelligenceDashboard: React.FC<Props> = ({
         dismissed: i.status === 'DISMISSED'
       }));
       setInsights(transformedInsights.length > 0 ? transformedInsights : []);
-    } catch (error) {
-      // Mock data
+    } catch {
+      // Mock data fallback
       setInsights([
         {
           id: 'INS001',

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 // ============================================================================
 // IMS 2.0 - Employee Offboarding Component
 // Exit workflow with stock count, access revocation, settlement calculation

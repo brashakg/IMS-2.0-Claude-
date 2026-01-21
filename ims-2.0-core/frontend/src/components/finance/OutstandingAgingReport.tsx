@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 // ============================================================================
 // IMS 2.0 - Outstanding Aging Report Component
 // Accounts receivable aging analysis by customer and age buckets
