@@ -5,6 +5,9 @@
 export { TaskList } from './TaskList';
 export type { Task, TaskType, TaskStatus } from './TaskList';
 
+export { TaskDetails } from './TaskDetails';
+export type { TaskWithDetails, TaskNote, TaskRating, ChecklistItem } from './TaskDetails';
+
 export { SOPTemplates } from './SOPTemplates';
 export type { SOPTemplate, SOPChecklistItem } from './SOPTemplates';
 
