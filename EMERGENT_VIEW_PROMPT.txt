@@ -1,0 +1,146 @@
+==========================================
+EMERGENT PROMPT - VIEW & TEST IMS 2.0 RAZORPAY INTEGRATION
+==========================================
+
+I've just completed Razorpay Payment Gateway integration for IMS 2.0.
+Please help me start the system and test the payment functionality.
+
+WHAT WAS BUILT:
+- Complete Razorpay payment integration (backend + frontend)
+- Manual payment methods (Cash, Card, UPI, Credit)
+- Split payment support
+- Mixed payment (manual + online)
+- 1,975 lines of production code
+
+BRANCH: claude/continue-ims-development-KktXu
+STATUS: Ready to test
+
+==========================================
+STEP 1: START BACKEND
+==========================================
+
+cd /home/user/IMS-2.0-Claude-/ims-2.0-core/backend
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+Wait for: "Application startup complete"
+Then verify: http://localhost:8000/health (should show "healthy")
+
+Keep this terminal running!
+
+==========================================
+STEP 2: START FRONTEND (NEW TERMINAL)
+==========================================
+
+cd /home/user/IMS-2.0-Claude-/ims-2.0-core/frontend
+npm install
+npm run dev
+
+Wait for: "Local: http://localhost:5173/"
+Then open: http://localhost:5173/
+
+Keep this terminal running!
+
+==========================================
+STEP 3: LOGIN & TEST
+==========================================
+
+LOGIN:
+Email: store1.manager@beautyvision.com
+Password: Manager@2024
+
+NAVIGATION:
+1. After login → Click "POS" in sidebar
+2. You'll see the Point of Sale page
+
+==========================================
+STEP 4: TEST PAYMENTS
+==========================================
+
+TEST 1 - MANUAL CASH PAYMENT:
+1. Search customer: 9876543210 (Rajesh Kumar)
+2. Add product: Scan barcode BV-RAY-AVIATOR-001
+3. Scroll to "Payment Collection" panel
+4. Enter 2500 in "Cash" field
+5. Click green "Collect ₹2,500 Payment" button
+6. Verify payment appears in "Collected Payments"
+7. Click "Complete Order"
+
+TEST 2 - SPLIT PAYMENT:
+1. Click "New Order"
+2. Same customer and product
+3. Enter 1500 in Cash, 1000 in Card
+4. Click "Collect ₹2,500 Payment"
+5. See both payments listed
+6. Complete order
+
+TEST 3 - RAZORPAY ONLINE PAYMENT:
+1. New order, same setup
+2. DON'T enter manual amounts
+3. Click blue "Pay ₹2,500 Online (Razorpay)" button
+4. Razorpay modal opens
+5. Click "Pay ₹2,500" button
+6. Watch payment process (mock mode, auto-succeeds)
+7. Payment added automatically
+8. Complete order
+
+TEST 4 - MIXED PAYMENT:
+1. New order with ₹5,000 total (add 2 products)
+2. Enter 2000 in Cash
+3. Collect Cash payment
+4. Balance shows ₹3,000
+5. Click "Pay ₹3,000 Online"
+6. Complete Razorpay payment
+7. See both payments (Cash + Online)
+8. Complete order
+
+==========================================
+WHAT TO SHOW ME
+==========================================
+
+Please show me:
+1. Screenshots of POS page with payment panel
+2. Screenshot of Razorpay modal opening
+3. Screenshot of collected payments list
+4. Screenshot of completed order confirmation
+5. Any console errors (if any)
+
+Tell me:
+- Did all 4 payment tests work?
+- Any issues encountered?
+- System performance (fast/slow?)
+
+==========================================
+ADDITIONAL VERIFICATION
+==========================================
+
+If you want to check backend data:
+
+mongosh
+use ims_db
+db.orders.find().sort({created_at: -1}).limit(4)
+db.payments.find().sort({created_at: -1})
+
+This shows the orders and payments created during testing.
+
+==========================================
+FILES TO REVIEW (OPTIONAL)
+==========================================
+
+Backend:
+- backend/api/routers/payments.py (516 lines)
+- backend/core/payment_gateway_engine.py (565 lines)
+- backend/database/repositories/payment_repository.py (262 lines)
+
+Frontend:
+- frontend/src/components/pos/RazorpayPaymentModal.tsx (385 lines)
+- frontend/src/components/pos/PaymentCollectionPanel.tsx (updated)
+- frontend/src/services/api.ts (added paymentApi)
+
+==========================================
+THAT'S IT!
+==========================================
+
+Just start the servers, test the payments, and show me what you see.
+No coding needed - everything is already built and ready to run.
+
+🚀 Let's see this Razorpay integration in action!
