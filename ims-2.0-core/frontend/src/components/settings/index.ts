@@ -4,3 +4,4 @@
 
 export { DiscountMatrix } from './DiscountMatrix';
 export { StoreSettings } from './StoreSettings';
+export { StoreSetupWizard } from './StoreSetupWizard';

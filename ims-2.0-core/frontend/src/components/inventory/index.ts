@@ -6,3 +6,4 @@ export { StockAcceptance } from './StockAcceptance';
 export { StockTransfer } from './StockTransfer';
 export { StockCount } from './StockCount';
 export { BarcodePrint } from './BarcodePrint';
+export { VendorManagement } from './VendorManagement';

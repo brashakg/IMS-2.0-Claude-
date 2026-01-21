@@ -6,3 +6,5 @@ export { GeoAttendance } from './GeoAttendance';
 export { PayrollManagement } from './PayrollManagement';
 export { SalarySlip, SalarySlipDemo } from './SalarySlip';
 export { ShiftManagement } from './ShiftManagement';
+export { EmployeeOnboarding } from './EmployeeOnboarding';
+export { EmployeeOffboarding } from './EmployeeOffboarding';

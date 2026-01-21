@@ -4,3 +4,5 @@
 
 export { GSTInvoice, GSTInvoiceDemo } from './GSTInvoice';
 export { DeliveryChallan, DeliveryChallanDemo } from './DeliveryChallan';
+export { DebitNote, DebitNoteDemo } from './DebitNote';
+export { CreditNote, CreditNoteDemo } from './CreditNote';
