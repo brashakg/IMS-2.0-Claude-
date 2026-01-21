@@ -15,14 +15,14 @@ I could only understan option 1, please simplify everything you wrote later
 
 ~~~~~~~~~~~~~~~~~~~~~~
 You said:
-https://vscode-1212ef02-a544-45af-807b-550ed4c2a070.preview.emergentagent.com/
+https://deploy-only-2.preview.emergentagent.com/
 fa26f878
 This is my code, can you check this
 ~~~~~~~~~~~~~~~~~~~~~~
 
 ~~~~~~~~~~~~~~~~~~~~~~
 You said:
-https://visionpos-suite.preview.emergentagent.com/
+https://deploy-only-2.preview.emergentagent.com/
 ~~~~~~~~~~~~~~~~~~~~~~
 
 ~~~~~~~~~~~~~~~~~~~~~~
