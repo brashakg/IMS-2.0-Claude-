@@ -15,7 +15,7 @@ from .auth import get_current_user
 from ..database import Database
 from database.repositories.payment_repository import PaymentRepository
 from database.repositories.order_repository import OrderRepository
-from ...core.payment_gateway_engine import PaymentGatewayEngine
+from core.payment_gateway_engine import PaymentGatewayEngine
 
 router = APIRouter()
 

@@ -13,7 +13,7 @@ from .auth import get_current_user
 from ..database import Database
 from database.repositories.task_repository import TaskRepository
 from database.repositories.user_repository import UserRepository
-from ...core.task_escalation_service import TaskEscalationService
+from core.task_escalation_service import TaskEscalationService
 
 router = APIRouter()
 

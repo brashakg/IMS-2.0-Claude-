@@ -17,7 +17,7 @@ from database.repositories.order_repository import OrderRepository
 from database.repositories.product_repository import ProductRepository
 from database.repositories.prescription_repository import PrescriptionRepository
 from database.repositories.user_repository import UserRepository
-from ...core.pricing_engine import (
+from core.pricing_engine import (
     PricingEngine,
     Product as PricingProduct,
     Role as PricingRole,
@@ -25,8 +25,8 @@ from ...core.pricing_engine import (
     PricingDecision,
     DiscountClass
 )
-from ...core.inventory_engine import InventoryEngine
-from ...core.workshop_engine import WorkshopEngine
+from core.inventory_engine import InventoryEngine
+from core.workshop_engine import WorkshopEngine
 
 router = APIRouter()
 
