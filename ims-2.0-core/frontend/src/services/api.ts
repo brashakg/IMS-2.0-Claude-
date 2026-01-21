@@ -66,8 +66,15 @@ export const authApi = {
       latitude: credentials.latitude,
       longitude: credentials.longitude,
     };
-    const response = await api.post<LoginResponse>('/auth/login', payload);
-    return response.data;
+    const response = await api.post<any>('/auth/login', payload);
+    
+    // Transform backend response to match frontend expectations
+    return {
+      success: response.data.success || true,
+      token: response.data.access_token, // Backend sends access_token
+      user: response.data.user,
+      message: response.data.message,
+    };
   },
 
   logout: async (): Promise<void> => {
