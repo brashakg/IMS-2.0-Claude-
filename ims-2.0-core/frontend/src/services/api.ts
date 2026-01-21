@@ -6,10 +6,11 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import type { ApiResponse, LoginCredentials, LoginResponse, User } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_VERSION = import.meta.env.VITE_API_VERSION || 'v1';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api/${API_VERSION}`,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
