@@ -3,7 +3,7 @@
 // Full-featured customer management with MockDataContext integration
 // ============================================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -25,9 +25,10 @@ import {
   ArrowLeft,
   Save,
   UserPlus,
+  Loader2,
 } from 'lucide-react';
-import type { Customer, Patient, Prescription } from '../../types';
-import { useMockData } from '../../context/MockDataContext';
+import type { Customer, Patient, Prescription, Order } from '../../types';
+import { customerApi, orderApi, prescriptionApi } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
@@ -54,15 +55,56 @@ const mockPrescriptions: Record<string, Prescription[]> = {
 };
 
 export function CustomersPage() {
-  const { customers, orders, addCustomer, updateCustomer, deleteCustomer, searchCustomers } = useMockData();
   const toast = useToast();
 
+  // Data state
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Record<string, Prescription[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filterType, setFilterType] = useState<'ALL' | 'B2C' | 'B2B'>('ALL');
   const [showAddPatientModal, setShowAddPatientModal] = useState(false);
+
+  // Fetch customers from API
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const fetchedCustomers = await customerApi.getCustomers({ search: searchQuery || undefined });
+      setCustomers(fetchedCustomers);
+    } catch (err) {
+      toast.error('Failed to fetch customers');
+      console.error('Error fetching customers:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, toast]);
+
+  // Fetch customer orders
+  const fetchCustomerOrders = useCallback(async (customerId: string) => {
+    try {
+      const customerOrders = await orderApi.getOrders({ customerId });
+      setOrders(customerOrders);
+    } catch (err) {
+      console.error('Error fetching customer orders:', err);
+    }
+  }, []);
+
+  // Load customers on mount and when search changes
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
+
+  // Load orders when customer is selected
+  useEffect(() => {
+    if (selectedCustomer) {
+      fetchCustomerOrders(selectedCustomer.id);
+    }
+  }, [selectedCustomer, fetchCustomerOrders]);
 
   // Form states
   const [formData, setFormData] = useState<{
@@ -144,48 +186,62 @@ export function CustomersPage() {
     setViewMode('edit');
   };
 
-  const handleSaveCustomer = () => {
+  const handleSaveCustomer = async () => {
     if (!formData.name || !formData.phone) {
       toast.error('Name and phone are required');
       return;
     }
 
-    if (viewMode === 'add') {
-      const newCustomer = addCustomer({
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email || undefined,
-        customerType: formData.customerType,
-        gstNumber: formData.customerType === 'B2B' ? formData.gstNumber : undefined,
-        address: formData.address,
-        patients: [],
-      });
-      toast.success(`Customer ${newCustomer.name} created`);
-      setSelectedCustomer(newCustomer);
-      setViewMode('detail');
-    } else if (viewMode === 'edit' && selectedCustomer) {
-      updateCustomer(selectedCustomer.id, {
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email || undefined,
-        customerType: formData.customerType,
-        gstNumber: formData.customerType === 'B2B' ? formData.gstNumber : undefined,
-        address: formData.address,
-      });
-      toast.success('Customer updated');
-      const updated = customers.find(c => c.id === selectedCustomer.id);
-      if (updated) setSelectedCustomer(updated);
-      setViewMode('detail');
+    try {
+      if (viewMode === 'add') {
+        const newCustomer = await customerApi.createCustomer({
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email || undefined,
+          customerType: formData.customerType,
+          gstNumber: formData.customerType === 'B2B' ? formData.gstNumber : undefined,
+          address: formData.address,
+          patients: [],
+        });
+        toast.success(`Customer ${newCustomer.name} created`);
+        setSelectedCustomer(newCustomer);
+        setViewMode('detail');
+        await fetchCustomers(); // Refresh list
+      } else if (viewMode === 'edit' && selectedCustomer) {
+        await customerApi.updateCustomer(selectedCustomer.id, {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email || undefined,
+          customerType: formData.customerType,
+          gstNumber: formData.customerType === 'B2B' ? formData.gstNumber : undefined,
+          address: formData.address,
+        });
+        toast.success('Customer updated');
+        await fetchCustomers(); // Refresh list
+        const updated = customers.find(c => c.id === selectedCustomer.id);
+        if (updated) setSelectedCustomer(updated);
+        setViewMode('detail');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save customer';
+      toast.error(errorMessage);
     }
   };
 
-  const handleDeleteCustomer = () => {
+  const handleDeleteCustomer = async () => {
     if (!selectedCustomer) return;
-    if (window.confirm(`Delete ${selectedCustomer.name}?`)) {
-      deleteCustomer(selectedCustomer.id);
-      toast.success('Customer deleted');
-      handleBack();
-    }
+
+    // Note: Customer deletion not yet implemented in API
+    // In production, this would mark customer as inactive rather than delete
+    toast.error('Customer deletion not yet implemented. Contact system administrator.');
+
+    // TODO: Implement when backend API supports customer deactivation
+    // if (window.confirm(`Deactivate ${selectedCustomer.name}?`)) {
+    //   await customerApi.deactivateCustomer(selectedCustomer.id);
+    //   toast.success('Customer deactivated');
+    //   handleBack();
+    //   await fetchCustomers();
+    // }
   };
 
   const handleAddPatient = () => {
@@ -461,7 +517,12 @@ export function CustomersPage() {
       </div>
 
       <div className="card">
-        {filteredCustomers.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 mx-auto mb-2 text-bv-red-600 animate-spin" />
+            <p className="text-gray-500">Loading customers...</p>
+          </div>
+        ) : filteredCustomers.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p>No customers found</p>
