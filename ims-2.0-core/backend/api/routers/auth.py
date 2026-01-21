@@ -150,7 +150,7 @@ async def login(login_request: LoginRequest, request: Request):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Verify password using bcrypt
-    if not verify_password(request.password, user.get("password", "")):
+    if not verify_password(login_request.password, user.get("password", "")):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Check if account is active
@@ -162,7 +162,7 @@ async def login(login_request: LoginRequest, request: Request):
     accessible_stores = user.get("accessible_stores", [])
 
     # Validate store access if store_id provided
-    active_store = request.store_id
+    active_store = login_request.store_id
     if active_store:
         if active_store not in accessible_stores:
             # Allow ADMIN/SUPERADMIN to access any store
@@ -177,7 +177,7 @@ async def login(login_request: LoginRequest, request: Request):
     hq_roles = ["ADMIN", "SUPERADMIN", "AREA_MANAGER", "ACCOUNTANT", "CATALOG_MANAGER"]
     is_store_staff = not any(r in hq_roles for r in roles)
 
-    if is_store_staff and active_store and request.latitude and request.longitude:
+    if is_store_staff and active_store and login_request.latitude and login_request.longitude:
         # Get store location
         store = Database.get_collection("stores").find_one({"store_id": active_store})
 
@@ -188,8 +188,8 @@ async def login(login_request: LoginRequest, request: Request):
 
             # Calculate distance
             distance = calculate_distance(
-                request.latitude,
-                request.longitude,
+                login_request.latitude,
+                login_request.longitude,
                 store_lat,
                 store_lon
             )
@@ -204,9 +204,9 @@ async def login(login_request: LoginRequest, request: Request):
     repo.update(user["user_id"], {
         "last_login": datetime.now(),
         "last_login_location": {
-            "latitude": request.latitude,
-            "longitude": request.longitude
-        } if request.latitude and request.longitude else None
+            "latitude": login_request.latitude,
+            "longitude": login_request.longitude
+        } if login_request.latitude and login_request.longitude else None
     })
 
     # Create token
