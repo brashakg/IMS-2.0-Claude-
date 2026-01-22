@@ -21,12 +21,463 @@ import {
   Building2,
   Loader2,
   AlertCircle,
+  Save,
 } from 'lucide-react';
 import type { Customer, Patient, Prescription } from '../../types';
 import { customerApi, prescriptionApi, orderApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
+
+// ============================================================================
+// Add Customer Modal Component
+// ============================================================================
+interface AddCustomerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function AddCustomerModal({ isOpen, onClose, onSuccess }: AddCustomerModalProps) {
+  const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    customerType: 'B2C' as 'B2C' | 'B2B',
+    gstNumber: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error('Customer name is required');
+      return;
+    }
+    if (!formData.phone.trim() || formData.phone.length < 10) {
+      toast.error('Valid phone number is required');
+      return;
+    }
+    if (formData.customerType === 'B2B' && !formData.gstNumber.trim()) {
+      toast.error('GST number is required for B2B customers');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await customerApi.createCustomer({
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim() || undefined,
+        customerType: formData.customerType,
+        gstNumber: formData.customerType === 'B2B' ? formData.gstNumber.trim() : undefined,
+        address: formData.address.trim() || undefined,
+        city: formData.city.trim() || undefined,
+        state: formData.state.trim() || undefined,
+        pincode: formData.pincode.trim() || undefined,
+      });
+      toast.success('Customer created successfully');
+      onSuccess();
+      onClose();
+      // Reset form
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        customerType: 'B2C',
+        gstNumber: '',
+        address: '',
+        city: '',
+        state: '',
+        pincode: '',
+      });
+    } catch (err) {
+      console.error('Failed to create customer:', err);
+      toast.error('Failed to create customer. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Add New Customer</h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Customer Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Customer Type <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="customerType"
+                  value="B2C"
+                  checked={formData.customerType === 'B2C'}
+                  onChange={handleChange}
+                  className="w-4 h-4 text-bv-red-600"
+                />
+                <span className="text-sm">B2C (Individual)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="customerType"
+                  value="B2B"
+                  checked={formData.customerType === 'B2B'}
+                  onChange={handleChange}
+                  className="w-4 h-4 text-bv-red-600"
+                />
+                <span className="text-sm">B2B (Business)</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {formData.customerType === 'B2B' ? 'Company Name' : 'Customer Name'} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="input-field"
+              placeholder={formData.customerType === 'B2B' ? 'Enter company name' : 'Enter customer name'}
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="input-field"
+              placeholder="10-digit mobile number"
+              maxLength={10}
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="input-field"
+              placeholder="customer@example.com"
+            />
+          </div>
+
+          {/* GST Number (B2B only) */}
+          {formData.customerType === 'B2B' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                GST Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="gstNumber"
+                value={formData.gstNumber}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="22AAAAA0000A1Z5"
+                maxLength={15}
+              />
+            </div>
+          )}
+
+          {/* Address */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <textarea
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              className="input-field"
+              rows={2}
+              placeholder="Street address"
+            />
+          </div>
+
+          {/* City, State, Pincode */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="City"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <input
+                type="text"
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="State"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pincode</label>
+              <input
+                type="text"
+                name="pincode"
+                value={formData.pincode}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="000000"
+                maxLength={6}
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-outline"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary flex items-center gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Create Customer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Add Patient Modal Component
+// ============================================================================
+interface AddPatientModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  customerId: string;
+  customerName: string;
+}
+
+function AddPatientModal({ isOpen, onClose, onSuccess, customerId, customerName }: AddPatientModalProps) {
+  const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    relation: 'SELF',
+    dateOfBirth: '',
+    phone: '',
+  });
+
+  const relationOptions = [
+    { value: 'SELF', label: 'Self' },
+    { value: 'SPOUSE', label: 'Spouse' },
+    { value: 'CHILD', label: 'Child' },
+    { value: 'PARENT', label: 'Parent' },
+    { value: 'SIBLING', label: 'Sibling' },
+    { value: 'OTHER', label: 'Other' },
+  ];
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!formData.name.trim()) {
+      toast.error('Patient name is required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await customerApi.addPatient(customerId, {
+        name: formData.name.trim(),
+        relation: formData.relation,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        phone: formData.phone.trim() || undefined,
+      });
+      toast.success('Patient added successfully');
+      onSuccess();
+      onClose();
+      // Reset form
+      setFormData({
+        name: '',
+        relation: 'SELF',
+        dateOfBirth: '',
+        phone: '',
+      });
+    } catch (err) {
+      console.error('Failed to add patient:', err);
+      toast.error('Failed to add patient. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Add Patient</h2>
+            <p className="text-sm text-gray-500">For: {customerName}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Patient Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Patient Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="input-field"
+              placeholder="Enter patient name"
+            />
+          </div>
+
+          {/* Relation */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+            <select
+              name="relation"
+              value={formData.relation}
+              onChange={handleChange}
+              className="input-field"
+            >
+              {relationOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date of Birth */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+            <input
+              type="date"
+              name="dateOfBirth"
+              value={formData.dateOfBirth}
+              onChange={handleChange}
+              className="input-field"
+              max={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+
+          {/* Phone (Optional) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone (Optional)</label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="input-field"
+              placeholder="If different from customer"
+              maxLength={10}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-outline"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary flex items-center gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              Add Patient
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 type ViewMode = 'list' | 'detail';
 
@@ -45,6 +496,10 @@ export function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filterType, setFilterType] = useState<'ALL' | 'B2C' | 'B2B'>('ALL');
+
+  // Modal state
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -145,6 +600,23 @@ export function CustomersPage() {
     setViewMode('list');
   };
 
+  // Refresh selected customer after adding a patient
+  const refreshSelectedCustomer = async () => {
+    if (!selectedCustomer) return;
+    try {
+      const response = await customerApi.getCustomer(selectedCustomer.id);
+      const customer = response.customer || response;
+      setSelectedCustomer(customer);
+      // If we just added the first patient, auto-select them
+      if (customer.patients?.length > 0 && !selectedPatient) {
+        setSelectedPatient(customer.patients[customer.patients.length - 1]);
+        loadPrescriptions(customer.patients[customer.patients.length - 1].id);
+      }
+    } catch (err) {
+      console.error('Failed to refresh customer:', err);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-IN', {
       day: '2-digit',
@@ -182,7 +654,7 @@ export function CustomersPage() {
           </div>
           {canAddCustomer && (
             <button
-              onClick={() => toast.info('Add customer modal coming soon')}
+              onClick={() => setIsAddCustomerModalOpen(true)}
               className="btn-primary flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -248,7 +720,7 @@ export function CustomersPage() {
               <p>{searchQuery ? 'No customers found matching your search' : 'No customers yet'}</p>
               {canAddCustomer && !searchQuery && (
                 <button
-                  onClick={() => toast.info('Add customer modal coming soon')}
+                  onClick={() => setIsAddCustomerModalOpen(true)}
                   className="mt-4 text-bv-red-600 hover:text-bv-red-700"
                 >
                   Add your first customer
@@ -306,6 +778,13 @@ export function CustomersPage() {
             </div>
           )}
         </div>
+
+        {/* Add Customer Modal */}
+        <AddCustomerModal
+          isOpen={isAddCustomerModalOpen}
+          onClose={() => setIsAddCustomerModalOpen(false)}
+          onSuccess={loadCustomers}
+        />
       </div>
     );
   }
@@ -378,7 +857,7 @@ export function CustomersPage() {
             <h2 className="font-semibold text-gray-900">Patients</h2>
             {canAddCustomer && (
               <button
-                onClick={() => toast.info('Add patient modal coming soon')}
+                onClick={() => setIsAddPatientModalOpen(true)}
                 className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />
@@ -503,6 +982,24 @@ export function CustomersPage() {
           </div>
         )}
       </div>
+
+      {/* Add Customer Modal */}
+      <AddCustomerModal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        onSuccess={loadCustomers}
+      />
+
+      {/* Add Patient Modal */}
+      {selectedCustomer && (
+        <AddPatientModal
+          isOpen={isAddPatientModalOpen}
+          onClose={() => setIsAddPatientModalOpen(false)}
+          onSuccess={refreshSelectedCustomer}
+          customerId={selectedCustomer.id}
+          customerName={selectedCustomer.name}
+        />
+      )}
     </div>
   );
 }
