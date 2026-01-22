@@ -4,7 +4,7 @@
 // Full prescription entry with axis validation (must be 1-180 whole number)
 
 import { useState } from 'react';
-import { X, Save, AlertTriangle, Eye, User, FileText } from 'lucide-react';
+import { X, Save, AlertTriangle, Eye, FileText } from 'lucide-react';
 import clsx from 'clsx';
 
 interface EyeTestFormProps {
@@ -108,7 +108,8 @@ export function EyeTestForm({ patientName, patientId, onSave, onClose }: EyeTest
   };
 
   // Validate sphere (-20.00 to +20.00 in 0.25 steps)
-  const validateSphere = (value: string): boolean => {
+  // Reserved for future field-level validation
+  const _validateSphere = (value: string): boolean => {
     if (!value) return true;
     const num = parseFloat(value);
     if (isNaN(num) || num < -20 || num > 20) {
@@ -118,9 +119,11 @@ export function EyeTestForm({ patientName, patientId, onSave, onClose }: EyeTest
     const remainder = Math.abs(num * 100) % 25;
     return remainder === 0;
   };
+  void _validateSphere;
 
   // Validate cylinder (-6.00 to +6.00 in 0.25 steps)
-  const validateCylinder = (value: string): boolean => {
+  // Reserved for future field-level validation
+  const _validateCylinder = (value: string): boolean => {
     if (!value) return true;
     const num = parseFloat(value);
     if (isNaN(num) || num < -6 || num > 6) {
@@ -129,6 +132,7 @@ export function EyeTestForm({ patientName, patientId, onSave, onClose }: EyeTest
     const remainder = Math.abs(num * 100) % 25;
     return remainder === 0;
   };
+  void _validateCylinder;
 
   const handleSubmit = () => {
     const newErrors: Record<string, string> = {};

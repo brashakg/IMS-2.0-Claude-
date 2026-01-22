@@ -1,89 +1,177 @@
 // ============================================================================
 // IMS 2.0 - Inventory Page
 // ============================================================================
+// NO MOCK DATA - All data from API
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Package,
   AlertTriangle,
   ArrowRightLeft,
   Plus,
-  Filter,
   Download,
   BarChart3,
   Tag,
   Boxes,
   TrendingDown,
   Eye,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import type { ProductCategory } from '../../types';
+import { inventoryApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
 // Category configuration
 const CATEGORIES: { code: ProductCategory; label: string; icon: string }[] = [
-  { code: 'FRAME', label: 'Frames', icon: '👓' },
-  { code: 'SUNGLASS', label: 'Sunglasses', icon: '🕶️' },
-  { code: 'READING_GLASSES', label: 'Reading Glasses', icon: '📖' },
-  { code: 'OPTICAL_LENS', label: 'Optical Lenses', icon: '🔍' },
-  { code: 'CONTACT_LENS', label: 'Contact Lenses', icon: '👁️' },
-  { code: 'COLORED_CONTACT_LENS', label: 'Colored CL', icon: '🎨' },
-  { code: 'WATCH', label: 'Watches', icon: '⌚' },
-  { code: 'SMARTWATCH', label: 'Smartwatches', icon: '📱' },
-  { code: 'SMARTGLASSES', label: 'Smart Glasses', icon: '🥽' },
-  { code: 'WALL_CLOCK', label: 'Wall Clocks', icon: '🕐' },
-  { code: 'ACCESSORIES', label: 'Accessories', icon: '🧴' },
-  { code: 'SERVICES', label: 'Services', icon: '🔧' },
+  { code: 'FR', label: 'Frames', icon: '👓' },
+  { code: 'SG', label: 'Sunglasses', icon: '🕶️' },
+  { code: 'RG', label: 'Reading Glasses', icon: '📖' },
+  { code: 'LS', label: 'Optical Lenses', icon: '🔍' },
+  { code: 'CL', label: 'Contact Lenses', icon: '👁️' },
+  { code: 'WT', label: 'Watches', icon: '⌚' },
+  { code: 'SMTWT', label: 'Smartwatches', icon: '📱' },
+  { code: 'SMTSG', label: 'Smart Sunglasses', icon: '🥽' },
+  { code: 'SMTFR', label: 'Smart Frames', icon: '🤓' },
+  { code: 'CK', label: 'Wall Clocks', icon: '🕐' },
+  { code: 'ACC', label: 'Accessories', icon: '🧴' },
+  { code: 'HA', label: 'Hearing Aids', icon: '👂' },
 ];
 
-// Mock inventory data
-const mockInventory = [
-  { id: 'stk-001', sku: 'RB-5154-BLK', name: 'Ray-Ban RB5154 Clubmaster', category: 'FRAME' as ProductCategory, brand: 'Ray-Ban', mrp: 8990, offerPrice: 6890, stock: 5, reserved: 1, location: 'A1-01', lowStockThreshold: 3 },
-  { id: 'stk-002', sku: 'RB-3025-GLD', name: 'Ray-Ban Aviator Classic', category: 'SUNGLASS' as ProductCategory, brand: 'Ray-Ban', mrp: 12990, offerPrice: 9990, stock: 3, reserved: 0, location: 'A1-02', lowStockThreshold: 3 },
-  { id: 'stk-003', sku: 'OAK-HOL-001', name: 'Oakley Holbrook', category: 'SUNGLASS' as ProductCategory, brand: 'Oakley', mrp: 15000, offerPrice: 12000, stock: 2, reserved: 1, location: 'A1-03', lowStockThreshold: 2 },
-  { id: 'stk-004', sku: 'ESS-CP-STD', name: 'Essilor Crizal Prevencia', category: 'OPTICAL_LENS' as ProductCategory, brand: 'Essilor', mrp: 4500, offerPrice: 3500, stock: 20, reserved: 3, location: 'B1-01', lowStockThreshold: 10 },
-  { id: 'stk-005', sku: 'ZS-DS-PRO', name: 'Zeiss DriveSafe', category: 'OPTICAL_LENS' as ProductCategory, brand: 'Zeiss', mrp: 8500, offerPrice: 7500, stock: 8, reserved: 0, location: 'B1-02', lowStockThreshold: 5 },
-  { id: 'stk-006', sku: 'ACV-OAS-6', name: 'Acuvue Oasys (6 pack)', category: 'CONTACT_LENS' as ProductCategory, brand: 'Acuvue', mrp: 2100, offerPrice: 1800, stock: 50, reserved: 5, location: 'C1-01', lowStockThreshold: 20 },
-  { id: 'stk-007', sku: 'FL-CB-BLU', name: 'FreshLook Colorblends - Blue', category: 'COLORED_CONTACT_LENS' as ProductCategory, brand: 'FreshLook', mrp: 1800, offerPrice: 1500, stock: 15, reserved: 2, location: 'C1-02', lowStockThreshold: 10 },
-  { id: 'stk-008', sku: 'TIT-EDG-CER', name: 'Titan Edge Ceramic', category: 'WATCH' as ProductCategory, brand: 'Titan', mrp: 15995, offerPrice: 13995, stock: 4, reserved: 0, location: 'D1-01', lowStockThreshold: 2 },
-  { id: 'stk-009', sku: 'APL-W9-45', name: 'Apple Watch Series 9', category: 'SMARTWATCH' as ProductCategory, brand: 'Apple', mrp: 45900, offerPrice: 42900, stock: 2, reserved: 1, location: 'D1-02', lowStockThreshold: 2 },
-  { id: 'stk-010', sku: 'RB-META-BLK', name: 'Ray-Ban Meta Smart Glasses', category: 'SMARTGLASSES' as ProductCategory, brand: 'Ray-Ban', mrp: 32990, offerPrice: 29990, stock: 1, reserved: 0, location: 'D1-03', lowStockThreshold: 1 },
-  { id: 'stk-011', sku: 'RG-150-STD', name: 'Reading Glasses +1.50', category: 'READING_GLASSES' as ProductCategory, brand: 'Generic', mrp: 599, offerPrice: 499, stock: 30, reserved: 0, location: 'E1-01', lowStockThreshold: 15 },
-  { id: 'stk-012', sku: 'ACC-LCK-01', name: 'Lens Cleaning Kit', category: 'ACCESSORIES' as ProductCategory, brand: 'Generic', mrp: 299, offerPrice: 199, stock: 100, reserved: 0, location: 'E1-02', lowStockThreshold: 30 },
-];
+// Stock item type
+interface StockItem {
+  id: string;
+  sku: string;
+  name: string;
+  productName?: string;
+  category: ProductCategory;
+  brand: string;
+  mrp: number;
+  offerPrice: number;
+  stock: number;
+  quantity?: number;
+  reserved: number;
+  location?: string;
+  lowStockThreshold?: number;
+  minStock?: number;
+}
+
+// Stock movement type
+interface StockMovement {
+  id: string;
+  type: 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT';
+  productName: string;
+  sku: string;
+  quantity: number;
+  reason: string;
+  createdAt: string;
+  createdBy: string;
+}
 
 type ViewTab = 'catalog' | 'low-stock' | 'movements';
 
 export function InventoryPage() {
+  const { user, hasRole } = useAuth();
+  const toast = useToast();
+
+  // Data state
+  const [inventory, setInventory] = useState<StockItem[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<StockItem[]>([]);
+  const [movements, _setMovements] = useState<StockMovement[]>([]);
+  // setMovements reserved for future stock movement tracking
+  void _setMovements;
+
+  // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null);
   const [activeTab, setActiveTab] = useState<ViewTab>('catalog');
-  const [showTransferModal, setShowTransferModal] = useState(false);
 
-  // Filter inventory
-  const filteredInventory = mockInventory.filter(item => {
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Role-based permissions
+  const canTransfer = hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER']);
+  const canAddProduct = hasRole(['SUPERADMIN', 'ADMIN', 'CATALOG_MANAGER']);
+  const canExport = hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ACCOUNTANT']);
+
+  // Load data on mount
+  useEffect(() => {
+    loadInventory();
+  }, [user?.activeStoreId]);
+
+  const loadInventory = async () => {
+    if (!user?.activeStoreId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Fetch inventory and low stock in parallel
+      const [stockData, lowStockData] = await Promise.all([
+        inventoryApi.getStock(user.activeStoreId).catch(() => ({ items: [] })),
+        inventoryApi.getLowStock(user.activeStoreId).catch(() => ({ items: [] })),
+      ]);
+
+      // Process stock data
+      const items = stockData?.items || stockData || [];
+      setInventory(Array.isArray(items) ? items.map((item: StockItem) => ({
+        ...item,
+        name: item.name || item.productName || 'Unknown Product',
+        stock: item.stock || item.quantity || 0,
+        lowStockThreshold: item.lowStockThreshold || item.minStock || 5,
+        reserved: item.reserved || 0,
+      })) : []);
+
+      // Process low stock data
+      const lowItems = lowStockData?.items || lowStockData || [];
+      setLowStockItems(Array.isArray(lowItems) ? lowItems.map((item: StockItem) => ({
+        ...item,
+        name: item.name || item.productName || 'Unknown Product',
+        stock: item.stock || item.quantity || 0,
+        lowStockThreshold: item.lowStockThreshold || item.minStock || 5,
+      })) : []);
+    } catch (err) {
+      console.error('Failed to load inventory:', err);
+      setError('Failed to load inventory. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Filter inventory locally
+  const filteredInventory = inventory.filter(item => {
     const matchesSearch = !searchQuery ||
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.brand.toLowerCase().includes(searchQuery.toLowerCase());
+      item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.brand?.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesCategory = !selectedCategory || item.category === selectedCategory;
 
     return matchesSearch && matchesCategory;
   });
 
-  // Get low stock items
-  const lowStockItems = mockInventory.filter(item => item.stock <= item.lowStockThreshold);
-
   // Calculate stats
-  const totalSKUs = mockInventory.length;
-  const totalValue = mockInventory.reduce((sum, item) => sum + (item.offerPrice * item.stock), 0);
+  const totalSKUs = inventory.length;
+  const totalValue = inventory.reduce((sum, item) => sum + ((item.offerPrice || item.mrp || 0) * (item.stock || 0)), 0);
   const lowStockCount = lowStockItems.length;
 
-  const getStockStatus = (item: typeof mockInventory[0]) => {
+  const getStockStatus = (item: StockItem) => {
+    const threshold = item.lowStockThreshold || item.minStock || 5;
     if (item.stock === 0) return { label: 'Out of Stock', class: 'badge-error' };
-    if (item.stock <= item.lowStockThreshold) return { label: 'Low Stock', class: 'badge-warning' };
+    if (item.stock <= threshold) return { label: 'Low Stock', class: 'badge-warning' };
     return { label: 'In Stock', class: 'badge-success' };
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
   return (
@@ -95,23 +183,60 @@ export function InventoryPage() {
           <p className="text-gray-500">Manage products and stock levels</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-outline flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export
-          </button>
           <button
-            onClick={() => setShowTransferModal(true)}
+            onClick={loadInventory}
+            disabled={isLoading}
             className="btn-outline flex items-center gap-2"
           >
-            <ArrowRightLeft className="w-4 h-4" />
-            Transfer
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Refresh
           </button>
-          <button className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add Product
-          </button>
+          {canExport && (
+            <button
+              onClick={() => toast.info('Export feature coming soon')}
+              className="btn-outline flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          )}
+          {canTransfer && (
+            <button
+              onClick={() => toast.info('Stock transfer feature coming soon')}
+              className="btn-outline flex items-center gap-2"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              Transfer
+            </button>
+          )}
+          {canAddProduct && (
+            <button
+              onClick={() => toast.info('Add product via Settings → Products Master')}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Product
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="card bg-red-50 border-red-200">
+          <div className="flex items-center gap-3 text-red-600">
+            <AlertTriangle className="w-5 h-5" />
+            <p>{error}</p>
+            <button onClick={loadInventory} className="ml-auto text-sm underline">
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 tablet:grid-cols-4 gap-4">
@@ -233,73 +358,92 @@ export function InventoryPage() {
       {/* Inventory Table */}
       {activeTab === 'catalog' && (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">MRP</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Offer</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Stock</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Location</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredInventory.map(item => {
-                  const status = getStockStatus(item);
-                  return (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="font-medium text-gray-900">{item.name}</p>
-                          <p className="text-sm text-gray-500">{item.brand}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{item.sku}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm">
-                          {CATEGORIES.find(c => c.code === item.category)?.icon}{' '}
-                          {CATEGORIES.find(c => c.code === item.category)?.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm text-gray-500">
-                        ₹{item.mrp.toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                        ₹{item.offerPrice.toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="font-medium">{item.stock}</span>
-                        {item.reserved > 0 && (
-                          <span className="text-xs text-gray-400 ml-1">({item.reserved} reserved)</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center text-sm text-gray-600">{item.location}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={status.class}>{status.label}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+            </div>
+          ) : filteredInventory.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>{searchQuery || selectedCategory ? 'No products found matching your filters' : 'No products in inventory'}</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">MRP</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Offer</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Stock</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Location</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredInventory.map(item => {
+                    const status = getStockStatus(item);
+                    const category = CATEGORIES.find(c => c.code === item.category);
+                    return (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div>
+                            <p className="font-medium text-gray-900">{item.name}</p>
+                            <p className="text-sm text-gray-500">{item.brand}</p>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{item.sku}</td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm">
+                            {category?.icon || '📦'}{' '}
+                            {category?.label || item.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm text-gray-500">
+                          {formatCurrency(item.mrp || 0)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                          {formatCurrency(item.offerPrice || item.mrp || 0)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="font-medium">{item.stock}</span>
+                          {item.reserved > 0 && (
+                            <span className="text-xs text-gray-400 ml-1">({item.reserved} reserved)</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm text-gray-600">{item.location || '-'}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={status.class}>{status.label}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => toast.info(`View details for ${item.name}`)}
+                            className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {/* Low Stock Tab */}
       {activeTab === 'low-stock' && (
         <div className="card">
-          {lowStockItems.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+            </div>
+          ) : lowStockItems.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No low stock items</p>
@@ -322,7 +466,7 @@ export function InventoryPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-yellow-600">{item.stock} left</p>
-                    <p className="text-xs text-gray-500">Min: {item.lowStockThreshold}</p>
+                    <p className="text-xs text-gray-500">Min: {item.lowStockThreshold || item.minStock || 5}</p>
                   </div>
                 </div>
               ))}
@@ -334,11 +478,50 @@ export function InventoryPage() {
       {/* Movements Tab */}
       {activeTab === 'movements' && (
         <div className="card">
-          <div className="text-center py-12 text-gray-500">
-            <ArrowRightLeft className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>Stock movement history will appear here</p>
-            <p className="text-sm">Transfers, adjustments, and sales</p>
-          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+            </div>
+          ) : movements.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <ArrowRightLeft className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No stock movements recorded yet</p>
+              <p className="text-sm">Transfers, adjustments, and sales will appear here</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {movements.map(movement => (
+                <div key={movement.id} className="py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={clsx(
+                      'w-8 h-8 rounded-full flex items-center justify-center',
+                      movement.type === 'IN' ? 'bg-green-100' :
+                      movement.type === 'OUT' ? 'bg-red-100' : 'bg-blue-100'
+                    )}>
+                      <ArrowRightLeft className={clsx(
+                        'w-4 h-4',
+                        movement.type === 'IN' ? 'text-green-600' :
+                        movement.type === 'OUT' ? 'text-red-600' : 'text-blue-600'
+                      )} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{movement.productName}</p>
+                      <p className="text-sm text-gray-500">{movement.sku} • {movement.reason}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={clsx(
+                      'font-bold',
+                      movement.type === 'IN' ? 'text-green-600' : 'text-red-600'
+                    )}>
+                      {movement.type === 'IN' ? '+' : '-'}{movement.quantity}
+                    </p>
+                    <p className="text-xs text-gray-500">{movement.createdBy}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

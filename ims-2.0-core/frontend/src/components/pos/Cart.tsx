@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Trash2, Plus, Minus, Percent, AlertTriangle, FileText } from 'lucide-react';
-import type { CartItem } from '../../pages/pos/POSPage';
+import type { CartItem } from '../../types';
 import clsx from 'clsx';
 
 interface CartProps {
@@ -30,7 +30,7 @@ export function Cart({ items, onRemoveItem, onUpdateQuantity, onApplyDiscount }:
 
   return (
     <div className="space-y-3">
-      {items.map((item, index) => (
+      {items.map((item) => (
         <div
           key={item.id}
           className={clsx(

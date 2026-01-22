@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { useState } from 'react';
-import { X, FileText, Plus, Eye, Calendar, Clock } from 'lucide-react';
+import { X, FileText, Plus, Eye, Calendar } from 'lucide-react';
 import type { Patient, Prescription } from '../../types';
 import clsx from 'clsx';
 

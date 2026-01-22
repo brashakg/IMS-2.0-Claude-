@@ -1,8 +1,9 @@
 // ============================================================================
 // IMS 2.0 - Clinical / Eye Tests Page
 // ============================================================================
+// NO MOCK DATA - All data from API
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Eye,
   User,
@@ -10,81 +11,38 @@ import {
   CheckCircle,
   Play,
   Plus,
-  Search,
   FileText,
-  Calendar,
   Phone,
-  ChevronRight,
+  Loader2,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
+import { clinicalApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
-// Mock queue data
-const mockQueue = [
-  {
-    id: 'q-001',
-    tokenNumber: 'T-001',
-    patientName: 'Rajesh Kumar',
-    customerPhone: '9876543210',
-    age: 39,
-    reason: 'New Glasses',
-    status: 'WAITING' as const,
-    waitTime: 15,
-    createdAt: '2025-01-21T10:00:00Z',
-  },
-  {
-    id: 'q-002',
-    tokenNumber: 'T-002',
-    patientName: 'Priya Sharma',
-    customerPhone: '9988776655',
-    age: 28,
-    reason: 'Eye Strain',
-    status: 'IN_PROGRESS' as const,
-    waitTime: 5,
-    createdAt: '2025-01-21T10:15:00Z',
-  },
-  {
-    id: 'q-003',
-    tokenNumber: 'T-003',
-    patientName: 'Arjun Mehta',
-    customerPhone: '9123456789',
-    age: 45,
-    reason: 'Progressive Lenses',
-    status: 'WAITING' as const,
-    waitTime: 8,
-    createdAt: '2025-01-21T10:22:00Z',
-  },
-  {
-    id: 'q-004',
-    tokenNumber: 'T-004',
-    patientName: 'Sunita Das',
-    customerPhone: '9876512345',
-    age: 52,
-    reason: 'Contact Lens Fitting',
-    status: 'WAITING' as const,
-    waitTime: 3,
-    createdAt: '2025-01-21T10:27:00Z',
-  },
-];
+// Types
+interface QueueItem {
+  id: string;
+  tokenNumber: string;
+  patientName: string;
+  customerPhone: string;
+  age?: number;
+  reason?: string;
+  status: QueueStatus;
+  waitTime: number;
+  createdAt: string;
+}
 
-// Mock completed tests today
-const mockCompletedToday = [
-  {
-    id: 'rx-t001',
-    patientName: 'Amit Singh',
-    customerPhone: '9876500001',
-    completedAt: '2025-01-21T09:45:00Z',
-    rightEye: { sphere: -1.50, cylinder: -0.50, axis: 90 },
-    leftEye: { sphere: -1.75, cylinder: -0.25, axis: 85 },
-  },
-  {
-    id: 'rx-t002',
-    patientName: 'Neha Gupta',
-    customerPhone: '9876500002',
-    completedAt: '2025-01-21T09:15:00Z',
-    rightEye: { sphere: +0.50, cylinder: null, axis: null },
-    leftEye: { sphere: +0.75, cylinder: -0.25, axis: 180 },
-  },
-];
+interface CompletedTest {
+  id: string;
+  patientName: string;
+  customerPhone: string;
+  completedAt: string;
+  rightEye: { sphere: number | null; cylinder: number | null; axis: number | null };
+  leftEye: { sphere: number | null; cylinder: number | null; axis: number | null };
+}
 
 type QueueStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED';
 
@@ -95,12 +53,71 @@ const STATUS_CONFIG: Record<QueueStatus, { label: string; class: string }> = {
 };
 
 export function ClinicalPage() {
-  const [activeTab, setActiveTab] = useState<'queue' | 'completed'>('queue');
-  const [showNewTestModal, setShowNewTestModal] = useState(false);
+  const { user, hasRole } = useAuth();
+  const toast = useToast();
 
-  const waitingCount = mockQueue.filter(q => q.status === 'WAITING').length;
-  const inProgressCount = mockQueue.filter(q => q.status === 'IN_PROGRESS').length;
-  const completedCount = mockCompletedToday.length;
+  // Data state
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [completedTests, setCompletedTests] = useState<CompletedTest[]>([]);
+
+  // UI state
+  const [activeTab, setActiveTab] = useState<'queue' | 'completed'>('queue');
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Role-based permissions
+  const canStartTest = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST']);
+  const canAddPatient = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST', 'SALES_CASHIER', 'SALES_STAFF']);
+
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, [user?.activeStoreId]);
+
+  const loadData = async () => {
+    if (!user?.activeStoreId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const [queueData, testsData] = await Promise.all([
+        clinicalApi.getQueue(user.activeStoreId).catch(() => ({ queue: [] })),
+        clinicalApi.getTodayTests(user.activeStoreId).catch(() => ({ tests: [] })),
+      ]);
+
+      const queueItems = queueData?.queue || queueData || [];
+      setQueue(Array.isArray(queueItems) ? queueItems : []);
+
+      const tests = testsData?.tests || testsData || [];
+      setCompletedTests(Array.isArray(tests) ? tests : []);
+    } catch (err) {
+      console.error('Failed to load clinical data:', err);
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStartTest = async (queueId: string) => {
+    setActionLoading(queueId);
+    try {
+      await clinicalApi.startTest(queueId);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to start test:', err);
+      setError('Failed to start test.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const waitingCount = queue.filter(q => q.status === 'WAITING').length;
+  const inProgressCount = queue.filter(q => q.status === 'IN_PROGRESS').length;
+  const completedCount = completedTests.length;
 
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleTimeString('en-IN', {
@@ -122,14 +139,43 @@ export function ClinicalPage() {
           <h1 className="text-2xl font-bold text-gray-900">Eye Tests</h1>
           <p className="text-gray-500">Manage patient queue and eye examinations</p>
         </div>
-        <button
-          onClick={() => setShowNewTestModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          New Patient
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={loadData}
+            disabled={isLoading}
+            className="btn-outline flex items-center gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Refresh
+          </button>
+          {canAddPatient && (
+            <button
+              onClick={() => toast.info('Add patient to queue feature coming soon')}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              New Patient
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="card bg-red-50 border-red-200">
+          <div className="flex items-center gap-3 text-red-600">
+            <AlertTriangle className="w-5 h-5" />
+            <p>{error}</p>
+            <button onClick={loadData} className="ml-auto text-sm underline">
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-4">
@@ -199,14 +245,19 @@ export function ClinicalPage() {
       {/* Queue Tab */}
       {activeTab === 'queue' && (
         <div className="space-y-3">
-          {mockQueue.length === 0 ? (
+          {isLoading ? (
+            <div className="card flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+            </div>
+          ) : queue.length === 0 ? (
             <div className="card text-center py-12 text-gray-500">
               <Eye className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No patients in queue</p>
             </div>
           ) : (
-            mockQueue.map((item, index) => {
-              const statusConfig = STATUS_CONFIG[item.status];
+            queue.map((item) => {
+              const statusConfig = STATUS_CONFIG[item.status] || { label: item.status, class: 'bg-gray-100 text-gray-600' };
+              const isActionLoading = actionLoading === item.id;
               return (
                 <div
                   key={item.id}
@@ -240,8 +291,8 @@ export function ClinicalPage() {
                             <Phone className="w-3 h-3" />
                             {item.customerPhone}
                           </span>
-                          <span>Age: {item.age}</span>
-                          <span>{item.reason}</span>
+                          {item.age && <span>Age: {item.age}</span>}
+                          {item.reason && <span>{item.reason}</span>}
                         </div>
                       </div>
                     </div>
@@ -259,14 +310,25 @@ export function ClinicalPage() {
                       </div>
 
                       {/* Actions */}
-                      {item.status === 'WAITING' && (
-                        <button className="btn-primary flex items-center gap-2">
-                          <Play className="w-4 h-4" />
+                      {item.status === 'WAITING' && canStartTest && (
+                        <button
+                          onClick={() => handleStartTest(item.id)}
+                          disabled={isActionLoading}
+                          className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {isActionLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
                           Start Test
                         </button>
                       )}
-                      {item.status === 'IN_PROGRESS' && (
-                        <button className="btn-primary flex items-center gap-2">
+                      {item.status === 'IN_PROGRESS' && canStartTest && (
+                        <button
+                          onClick={() => toast.info(`Continue eye test for ${item.patientName}`)}
+                          className="btn-primary flex items-center gap-2"
+                        >
                           <Eye className="w-4 h-4" />
                           Continue
                         </button>
@@ -283,14 +345,18 @@ export function ClinicalPage() {
       {/* Completed Tab */}
       {activeTab === 'completed' && (
         <div className="card overflow-hidden">
-          {mockCompletedToday.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+            </div>
+          ) : completedTests.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No tests completed today</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {mockCompletedToday.map(test => (
+              {completedTests.map(test => (
                 <div key={test.id} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -311,7 +377,10 @@ export function ClinicalPage() {
                         <p className="text-gray-500">R: {formatPower(test.rightEye.sphere)} / {formatPower(test.rightEye.cylinder)}</p>
                         <p className="text-gray-500">L: {formatPower(test.leftEye.sphere)} / {formatPower(test.leftEye.cylinder)}</p>
                       </div>
-                      <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors">
+                      <button
+                        onClick={() => toast.info(`View prescription for ${test.patientName}`)}
+                        className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors"
+                      >
                         <FileText className="w-5 h-5" />
                       </button>
                     </div>

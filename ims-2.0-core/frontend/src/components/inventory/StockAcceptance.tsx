@@ -7,11 +7,9 @@ import { useState } from 'react';
 import {
   Package,
   CheckCircle,
-  XCircle,
   AlertTriangle,
   Printer,
   MapPin,
-  Scan,
   ChevronRight,
 } from 'lucide-react';
 import clsx from 'clsx';

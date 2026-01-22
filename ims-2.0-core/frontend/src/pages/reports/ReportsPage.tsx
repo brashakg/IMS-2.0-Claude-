@@ -1,13 +1,13 @@
 // ============================================================================
 // IMS 2.0 - Reports Page
 // ============================================================================
+// NO MOCK DATA - All data from API
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart3,
   TrendingUp,
   Download,
-  Calendar,
   IndianRupee,
   Package,
   Users,
@@ -15,43 +15,39 @@ import {
   FileText,
   Eye,
   Printer,
-  Filter,
+  Loader2,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
+import { reportsApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
 type ReportType = 'sales' | 'inventory' | 'customers' | 'gst';
 type DateRange = 'today' | 'week' | 'month' | 'quarter' | 'custom';
 
-// Mock sales data
-const mockSalesSummary = {
-  totalSales: 485000,
-  orderCount: 45,
-  averageOrderValue: 10777,
-  topCategory: 'Frames',
-  grossProfit: 145000,
-  gstCollected: 87300,
-};
+// Types
+interface SalesSummary {
+  totalSales: number;
+  orderCount: number;
+  averageOrderValue: number;
+  topCategory: string;
+  grossProfit: number;
+  gstCollected: number;
+}
 
-// Mock category breakdown
-const mockCategoryBreakdown = [
-  { category: 'Frames', sales: 185000, units: 25, percentage: 38 },
-  { category: 'Optical Lenses', sales: 145000, units: 32, percentage: 30 },
-  { category: 'Sunglasses', sales: 85000, units: 12, percentage: 18 },
-  { category: 'Contact Lenses', sales: 45000, units: 40, percentage: 9 },
-  { category: 'Accessories', sales: 15000, units: 28, percentage: 3 },
-  { category: 'Watches', sales: 10000, units: 2, percentage: 2 },
-];
+interface CategoryBreakdown {
+  category: string;
+  sales: number;
+  units: number;
+  percentage: number;
+}
 
-// Mock daily trend
-const mockDailyTrend = [
-  { date: '15 Jan', sales: 42000 },
-  { date: '16 Jan', sales: 58000 },
-  { date: '17 Jan', sales: 35000 },
-  { date: '18 Jan', sales: 72000 },
-  { date: '19 Jan', sales: 48000 },
-  { date: '20 Jan', sales: 95000 },
-  { date: '21 Jan', sales: 135000 },
-];
+interface DailyTrend {
+  date: string;
+  sales: number;
+}
 
 // Report cards
 const REPORT_CARDS = [
@@ -100,9 +96,103 @@ const REPORT_CARDS = [
 ];
 
 export function ReportsPage() {
+  const { user, hasRole } = useAuth();
+  const toast = useToast();
+
+  // Data state
+  const [salesSummary, setSalesSummary] = useState<SalesSummary>({
+    totalSales: 0,
+    orderCount: 0,
+    averageOrderValue: 0,
+    topCategory: '-',
+    grossProfit: 0,
+    gstCollected: 0,
+  });
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
+  const [dailyTrend, setDailyTrend] = useState<DailyTrend[]>([]);
+
+  // UI state
   const [activeTab, setActiveTab] = useState<ReportType>('sales');
   const [dateRange, setDateRange] = useState<DateRange>('month');
-  const [showDetailedReport, setShowDetailedReport] = useState(false);
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Role-based permissions
+  const canExport = hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ACCOUNTANT']);
+
+  // Load data on mount and when date range changes
+  useEffect(() => {
+    loadReportData();
+  }, [user?.activeStoreId, dateRange]);
+
+  const getDateRange = (): { startDate: string; endDate: string } => {
+    const now = new Date();
+    const endDate = now.toISOString().split('T')[0];
+    let startDate: string;
+
+    switch (dateRange) {
+      case 'today':
+        startDate = endDate;
+        break;
+      case 'week':
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        startDate = weekAgo.toISOString().split('T')[0];
+        break;
+      case 'month':
+        const monthAgo = new Date(now);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        startDate = monthAgo.toISOString().split('T')[0];
+        break;
+      case 'quarter':
+        const quarterAgo = new Date(now);
+        quarterAgo.setMonth(quarterAgo.getMonth() - 3);
+        startDate = quarterAgo.toISOString().split('T')[0];
+        break;
+      default:
+        startDate = endDate;
+    }
+
+    return { startDate, endDate };
+  };
+
+  const loadReportData = async () => {
+    if (!user?.activeStoreId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { startDate, endDate } = getDateRange();
+      const response = await reportsApi.getSalesSummary(user.activeStoreId, startDate, endDate);
+
+      if (response) {
+        setSalesSummary({
+          totalSales: response.totalSales || 0,
+          orderCount: response.orderCount || 0,
+          averageOrderValue: response.averageOrderValue || 0,
+          topCategory: response.topCategory || '-',
+          grossProfit: response.grossProfit || 0,
+          gstCollected: response.gstCollected || 0,
+        });
+
+        if (response.categoryBreakdown) {
+          setCategoryBreakdown(response.categoryBreakdown);
+        }
+
+        if (response.dailyTrend) {
+          setDailyTrend(response.dailyTrend);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load report data:', err);
+      setError('Failed to load report data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredReports = REPORT_CARDS.filter(r => r.category === activeTab);
 
@@ -133,8 +223,33 @@ export function ReportsPage() {
             <option value="quarter">This Quarter</option>
             <option value="custom">Custom Range</option>
           </select>
+          <button
+            onClick={loadReportData}
+            disabled={isLoading}
+            className="btn-outline flex items-center gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Refresh
+          </button>
         </div>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="card bg-red-50 border-red-200">
+          <div className="flex items-center gap-3 text-red-600">
+            <AlertTriangle className="w-5 h-5" />
+            <p>{error}</p>
+            <button onClick={loadReportData} className="ml-auto text-sm underline">
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 tablet:grid-cols-4 gap-4">
@@ -145,7 +260,11 @@ export function ReportsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Sales</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(mockSalesSummary.totalSales)}</p>
+              {isLoading ? (
+                <div className="h-7 w-20 bg-gray-200 animate-pulse rounded mt-1" />
+              ) : (
+                <p className="text-xl font-bold text-gray-900">{formatCurrency(salesSummary.totalSales)}</p>
+              )}
             </div>
           </div>
         </div>
@@ -156,7 +275,11 @@ export function ReportsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Orders</p>
-              <p className="text-xl font-bold text-gray-900">{mockSalesSummary.orderCount}</p>
+              {isLoading ? (
+                <div className="h-7 w-12 bg-gray-200 animate-pulse rounded mt-1" />
+              ) : (
+                <p className="text-xl font-bold text-gray-900">{salesSummary.orderCount}</p>
+              )}
             </div>
           </div>
         </div>
@@ -167,7 +290,11 @@ export function ReportsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Avg Order Value</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(mockSalesSummary.averageOrderValue)}</p>
+              {isLoading ? (
+                <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+              ) : (
+                <p className="text-xl font-bold text-gray-900">{formatCurrency(salesSummary.averageOrderValue)}</p>
+              )}
             </div>
           </div>
         </div>
@@ -178,7 +305,11 @@ export function ReportsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">GST Collected</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(mockSalesSummary.gstCollected)}</p>
+              {isLoading ? (
+                <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+              ) : (
+                <p className="text-xl font-bold text-gray-900">{formatCurrency(salesSummary.gstCollected)}</p>
+              )}
             </div>
           </div>
         </div>
@@ -215,27 +346,42 @@ export function ReportsPage() {
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Sales Trend</h3>
-              <button className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1">
-                <Download className="w-4 h-4" />
-                Export
-              </button>
+              {canExport && (
+                <button
+                  onClick={() => toast.info('Export sales trend feature coming soon')}
+                  className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+              )}
             </div>
-            <div className="h-48 flex items-end gap-2">
-              {mockDailyTrend.map((day, index) => {
-                const maxSales = Math.max(...mockDailyTrend.map(d => d.sales));
-                const height = (day.sales / maxSales) * 100;
-                return (
-                  <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className="w-full bg-bv-red-600 rounded-t transition-all hover:bg-bv-red-700"
-                      style={{ height: `${height}%` }}
-                      title={formatCurrency(day.sales)}
-                    />
-                    <span className="text-xs text-gray-500">{day.date}</span>
-                  </div>
-                );
-              })}
-            </div>
+            {isLoading ? (
+              <div className="h-48 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+              </div>
+            ) : dailyTrend.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-gray-500">
+                <p>No sales data available for this period</p>
+              </div>
+            ) : (
+              <div className="h-48 flex items-end gap-2">
+                {dailyTrend.map((day, index) => {
+                  const maxSales = Math.max(...dailyTrend.map(d => d.sales));
+                  const height = maxSales > 0 ? (day.sales / maxSales) * 100 : 0;
+                  return (
+                    <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                      <div
+                        className="w-full bg-bv-red-600 rounded-t transition-all hover:bg-bv-red-700"
+                        style={{ height: `${height}%` }}
+                        title={formatCurrency(day.sales)}
+                      />
+                      <span className="text-xs text-gray-500">{day.date}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Category Breakdown */}
@@ -243,22 +389,40 @@ export function ReportsPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Category Breakdown</h3>
             </div>
-            <div className="space-y-3">
-              {mockCategoryBreakdown.map((cat, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-600">{cat.category}</span>
-                    <span className="font-medium">{formatCurrency(cat.sales)}</span>
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="h-4 w-20 bg-gray-200 animate-pulse rounded" />
+                      <div className="h-4 w-16 bg-gray-200 animate-pulse rounded" />
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full" />
                   </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-bv-red-600 rounded-full"
-                      style={{ width: `${cat.percentage}%` }}
-                    />
+                ))}
+              </div>
+            ) : categoryBreakdown.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">
+                <p>No category data available</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {categoryBreakdown.map((cat, index) => (
+                  <div key={index}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-gray-600">{cat.category}</span>
+                      <span className="font-medium">{formatCurrency(cat.sales)}</span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-bv-red-600 rounded-full"
+                        style={{ width: `${cat.percentage}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -277,15 +441,24 @@ export function ReportsPage() {
                   <h4 className="font-medium text-gray-900">{report.title}</h4>
                   <p className="text-sm text-gray-500 mt-1">{report.description}</p>
                   <div className="flex items-center gap-2 mt-3">
-                    <button className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`View ${report.title}`)}
+                      className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
+                    >
                       <Eye className="w-4 h-4" />
                       View
                     </button>
-                    <button className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`Export ${report.title}`)}
+                      className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
+                    >
                       <Download className="w-4 h-4" />
                       Export
                     </button>
-                    <button className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`Print ${report.title}`)}
+                      className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
+                    >
                       <Printer className="w-4 h-4" />
                       Print
                     </button>
@@ -310,10 +483,16 @@ export function ReportsPage() {
                 GST data for the period has been compiled. Download the reports for GSTR-1 and GSTR-3B filing.
               </p>
               <div className="flex gap-3 mt-3">
-                <button className="btn-primary text-sm">
+                <button
+                  onClick={() => toast.info('GSTR-1 download feature coming soon')}
+                  className="btn-primary text-sm"
+                >
                   Download GSTR-1
                 </button>
-                <button className="btn-outline text-sm">
+                <button
+                  onClick={() => toast.info('GSTR-3B download feature coming soon')}
+                  className="btn-outline text-sm"
+                >
                   Download GSTR-3B
                 </button>
               </div>

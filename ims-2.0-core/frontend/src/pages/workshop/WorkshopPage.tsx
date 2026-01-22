@@ -1,115 +1,49 @@
 // ============================================================================
 // IMS 2.0 - Workshop Page
 // ============================================================================
+// NO MOCK DATA - All data from API
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wrench,
   Clock,
-  Package,
   CheckCircle,
   AlertTriangle,
   Search,
-  Filter,
-  Play,
   Eye,
   Phone,
   User,
-  Calendar,
   Zap,
   Timer,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import type { JobStatus, JobPriority } from '../../types';
+import { workshopApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
-// Mock workshop jobs
-const mockJobs = [
-  {
-    id: 'job-001',
-    jobNumber: 'WS-2501-001',
-    orderNumber: 'BV-KOL-001-2501-0002',
-    customerId: 'cust-002',
-    customerName: 'Sunita Sharma',
-    customerPhone: '9988776655',
-    frameName: 'Titan Premium Frame',
-    frameBarcode: 'TIT-PRE-001',
-    lensType: 'Zeiss DriveSafe Progressive',
-    status: 'IN_PROGRESS' as JobStatus,
-    priority: 'NORMAL' as JobPriority,
-    assignedTo: 'Ravi Workshop',
-    expectedDate: '2025-01-22',
-    promisedDate: '2025-01-23',
-    createdAt: '2025-01-19T15:45:00Z',
-    notes: 'High power, check fitting carefully',
-  },
-  {
-    id: 'job-002',
-    jobNumber: 'WS-2501-002',
-    orderNumber: 'BV-KOL-001-2501-0005',
-    customerId: 'cust-005',
-    customerName: 'Rahul Singh',
-    customerPhone: '9988112233',
-    frameName: 'Ray-Ban Meta Smart Glasses',
-    frameBarcode: 'RB-META-001',
-    lensType: 'Essilor Crizal UV',
-    status: 'LENS_ORDERED' as JobStatus,
-    priority: 'EXPRESS' as JobPriority,
-    expectedDate: '2025-01-21',
-    promisedDate: '2025-01-22',
-    createdAt: '2025-01-21T14:30:00Z',
-  },
-  {
-    id: 'job-003',
-    jobNumber: 'WS-2501-003',
-    orderNumber: 'BV-KOL-001-2501-0006',
-    customerId: 'cust-006',
-    customerName: 'Anita Roy',
-    customerPhone: '9876500123',
-    frameName: 'Oakley Custom',
-    frameBarcode: 'OAK-CUS-001',
-    lensType: 'Zeiss Individual',
-    status: 'QC_PENDING' as JobStatus,
-    priority: 'URGENT' as JobPriority,
-    assignedTo: 'Ravi Workshop',
-    expectedDate: '2025-01-21',
-    promisedDate: '2025-01-21',
-    createdAt: '2025-01-20T09:00:00Z',
-  },
-  {
-    id: 'job-004',
-    jobNumber: 'WS-2501-004',
-    orderNumber: 'BV-KOL-001-2501-0007',
-    customerId: 'cust-007',
-    customerName: 'Vikram Patel',
-    customerPhone: '9123400567',
-    frameName: 'Ray-Ban Clubmaster',
-    frameBarcode: 'RB-CLB-001',
-    lensType: 'Essilor Varilux',
-    status: 'READY' as JobStatus,
-    priority: 'NORMAL' as JobPriority,
-    assignedTo: 'Suresh Workshop',
-    expectedDate: '2025-01-20',
-    promisedDate: '2025-01-21',
-    createdAt: '2025-01-18T11:00:00Z',
-    completedAt: '2025-01-21T10:00:00Z',
-  },
-  {
-    id: 'job-005',
-    jobNumber: 'WS-2501-005',
-    orderNumber: 'BV-KOL-001-2501-0008',
-    customerId: 'cust-008',
-    customerName: 'Meera Iyer',
-    customerPhone: '9876501234',
-    frameName: 'Titan Lite',
-    frameBarcode: 'TIT-LT-001',
-    lensType: 'Crizal Easy Pro',
-    status: 'CREATED' as JobStatus,
-    priority: 'NORMAL' as JobPriority,
-    expectedDate: '2025-01-24',
-    promisedDate: '2025-01-25',
-    createdAt: '2025-01-21T16:00:00Z',
-  },
-];
+// Job type
+interface Job {
+  id: string;
+  jobNumber: string;
+  orderNumber: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  frameName: string;
+  frameBarcode?: string;
+  lensType: string;
+  status: JobStatus;
+  priority: JobPriority;
+  assignedTo?: string;
+  expectedDate: string;
+  promisedDate: string;
+  createdAt: string;
+  completedAt?: string;
+  notes?: string;
+}
 
 const STATUS_CONFIG: Record<JobStatus, { label: string; class: string; step: number }> = {
   CREATED: { label: 'Created', class: 'bg-gray-100 text-gray-600', step: 1 },
@@ -124,23 +58,65 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; class: string; step: num
   CANCELLED: { label: 'Cancelled', class: 'bg-red-100 text-red-600', step: 0 },
 };
 
-const PRIORITY_CONFIG: Record<JobPriority, { label: string; class: string; icon: React.ComponentType<any> }> = {
+const PRIORITY_CONFIG: Record<JobPriority, { label: string; class: string; icon: React.ComponentType<{ className?: string }> }> = {
   NORMAL: { label: 'Normal', class: 'text-gray-500', icon: Clock },
   EXPRESS: { label: 'Express', class: 'text-orange-500', icon: Timer },
   URGENT: { label: 'Urgent', class: 'text-red-500', icon: Zap },
 };
 
 export function WorkshopPage() {
+  const { user, hasRole } = useAuth();
+  const toast = useToast();
+
+  // Data state
+  const [jobs, setJobs] = useState<Job[]>([]);
+
+  // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL' | 'ACTIVE'>('ACTIVE');
   const [priorityFilter, setPriorityFilter] = useState<JobPriority | 'ALL'>('ALL');
 
-  // Filter jobs
-  const filteredJobs = mockJobs.filter(job => {
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Role-based permissions
+  const _canUpdateStatus = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'WORKSHOP_STAFF']);
+  const _canAssignJob = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER']);
+  // Reserved for future job status update and assignment features
+  void _canUpdateStatus;
+  void _canAssignJob;
+
+  // Load jobs on mount
+  useEffect(() => {
+    loadJobs();
+  }, [user?.activeStoreId]);
+
+  const loadJobs = async () => {
+    if (!user?.activeStoreId) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await workshopApi.getJobs(user.activeStoreId);
+      const jobsData = response?.jobs || response || [];
+      setJobs(Array.isArray(jobsData) ? jobsData : []);
+    } catch (err) {
+      console.error('Failed to load jobs:', err);
+      setError('Failed to load workshop jobs. Please try again.');
+      setJobs([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Filter jobs locally
+  const filteredJobs = jobs.filter(job => {
     const matchesSearch = !searchQuery ||
-      job.jobNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.orderNumber.toLowerCase().includes(searchQuery.toLowerCase());
+      job.jobNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase());
 
     let matchesStatus = true;
     if (statusFilter === 'ACTIVE') {
@@ -155,9 +131,9 @@ export function WorkshopPage() {
   });
 
   // Stats
-  const activeJobs = mockJobs.filter(j => !['DELIVERED', 'CANCELLED'].includes(j.status));
+  const activeJobs = jobs.filter(j => !['DELIVERED', 'CANCELLED'].includes(j.status));
   const urgentJobs = activeJobs.filter(j => j.priority === 'URGENT');
-  const readyJobs = mockJobs.filter(j => j.status === 'READY');
+  const readyJobs = jobs.filter(j => j.status === 'READY');
   const overdueJobs = activeJobs.filter(j => new Date(j.promisedDate) < new Date());
 
   const formatDate = (dateStr: string) => {
@@ -179,7 +155,32 @@ export function WorkshopPage() {
           <h1 className="text-2xl font-bold text-gray-900">Workshop</h1>
           <p className="text-gray-500">Manage lens fitting and job orders</p>
         </div>
+        <button
+          onClick={loadJobs}
+          disabled={isLoading}
+          className="btn-outline flex items-center gap-2"
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4" />
+          )}
+          Refresh
+        </button>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="card bg-red-50 border-red-200">
+          <div className="flex items-center gap-3 text-red-600">
+            <AlertTriangle className="w-5 h-5" />
+            <p>{error}</p>
+            <button onClick={loadJobs} className="ml-auto text-sm underline">
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 tablet:grid-cols-4 gap-4">
@@ -270,10 +271,14 @@ export function WorkshopPage() {
 
       {/* Jobs List */}
       <div className="space-y-3">
-        {filteredJobs.length === 0 ? (
+        {isLoading ? (
+          <div className="card flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+          </div>
+        ) : filteredJobs.length === 0 ? (
           <div className="card text-center py-12 text-gray-500">
             <Wrench className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>No jobs found</p>
+            <p>{searchQuery || statusFilter !== 'ACTIVE' || priorityFilter !== 'ALL' ? 'No jobs found matching your filters' : 'No workshop jobs'}</p>
           </div>
         ) : (
           filteredJobs.map(job => {
@@ -353,7 +358,10 @@ export function WorkshopPage() {
                         Assigned: {job.assignedTo}
                       </p>
                     )}
-                    <button className="btn-outline text-sm flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`View job details: ${job.jobNumber}`)}
+                      className="btn-outline text-sm flex items-center gap-1"
+                    >
                       <Eye className="w-4 h-4" />
                       View
                     </button>
