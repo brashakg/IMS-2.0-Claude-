@@ -7,10 +7,13 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 import hashlib
 import os
+import bcrypt
+
+from database.connection import get_db
 
 router = APIRouter()
 security = HTTPBearer()
@@ -59,17 +62,22 @@ class RefreshTokenRequest(BaseModel):
 # ============================================================================
 
 def hash_password(password: str) -> str:
-    """Hash password using SHA-256"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using bcrypt"""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash"""
-    return hash_password(plain_password) == hashed_password
+    # Support both bcrypt and legacy sha256
+    if hashed_password.startswith('$2'):
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    else:
+        # Legacy sha256 fallback
+        return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
 
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     """Create JWT access token"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -91,6 +99,23 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 
 # ============================================================================
+# DEFAULT SUPERADMIN
+# ============================================================================
+
+# This is the bootstrap superadmin - can be used to create initial setup
+# After creating users in MongoDB, this will be bypassed if username exists in DB
+DEFAULT_SUPERADMIN = {
+    "user_id": "superadmin-001",
+    "username": "superadmin",
+    "password": "Super@123",  # Default password - should be changed after first login
+    "full_name": "Super Administrator",
+    "roles": ["SUPERADMIN"],
+    "store_ids": ["*"],  # Access to all stores
+    "is_active": True
+}
+
+
+# ============================================================================
 # ENDPOINTS
 # ============================================================================
 
@@ -99,53 +124,64 @@ async def login(request: LoginRequest):
     """
     Authenticate user and return JWT token
     """
-    # TODO: Replace with actual database lookup
-    # Mock user for demonstration
-    mock_users = {
-        "admin": {
-            "user_id": "user-001",
-            "username": "admin",
-            "password_hash": hash_password("admin123"),
-            "full_name": "Admin User",
-            "roles": ["ADMIN", "SUPERADMIN"],
-            "store_ids": ["store-hq"],
-            "is_active": True
-        },
-        "manager": {
-            "user_id": "user-002",
-            "username": "manager",
-            "password_hash": hash_password("manager123"),
-            "full_name": "Store Manager",
-            "roles": ["STORE_MANAGER"],
-            "store_ids": ["store-001"],
-            "is_active": True
-        },
-        "staff": {
-            "user_id": "user-003",
-            "username": "staff",
-            "password_hash": hash_password("staff123"),
-            "full_name": "Sales Staff",
-            "roles": ["SALES_STAFF"],
-            "store_ids": ["store-001"],
-            "is_active": True
-        }
-    }
+    db = get_db()
+    user = None
     
-    user = mock_users.get(request.username)
+    # First check MongoDB for user
+    if db.is_connected and db.users:
+        user_doc = db.users.find_one({"username": request.username})
+        if user_doc:
+            user = {
+                "user_id": str(user_doc.get("_id", user_doc.get("user_id", ""))),
+                "username": user_doc["username"],
+                "password_hash": user_doc.get("password_hash", ""),
+                "full_name": user_doc.get("full_name", user_doc.get("name", "")),
+                "roles": user_doc.get("roles", []),
+                "store_ids": user_doc.get("store_ids", []),
+                "is_active": user_doc.get("is_active", True)
+            }
+    
+    # Fallback to default superadmin if not found in DB
+    if not user and request.username == DEFAULT_SUPERADMIN["username"]:
+        user = {
+            "user_id": DEFAULT_SUPERADMIN["user_id"],
+            "username": DEFAULT_SUPERADMIN["username"],
+            "password_hash": DEFAULT_SUPERADMIN["password"],  # Plain text comparison for default
+            "full_name": DEFAULT_SUPERADMIN["full_name"],
+            "roles": DEFAULT_SUPERADMIN["roles"],
+            "store_ids": DEFAULT_SUPERADMIN["store_ids"],
+            "is_active": DEFAULT_SUPERADMIN["is_active"],
+            "is_default": True
+        }
     
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
-    if not verify_password(request.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+    # Verify password
+    if user.get("is_default"):
+        # Direct comparison for default superadmin
+        if request.password != user["password_hash"]:
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+    else:
+        if not verify_password(request.password, user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid username or password")
     
     if not user["is_active"]:
         raise HTTPException(status_code=403, detail="User account is disabled")
     
+    # Determine store_ids - SUPERADMIN can access all stores
+    user_store_ids = user["store_ids"]
+    if "*" in user_store_ids or "SUPERADMIN" in user["roles"]:
+        # Fetch all stores for superadmin
+        all_stores = []
+        if db.is_connected and db.stores:
+            stores_cursor = db.stores.find({}, {"_id": 0, "store_id": 1})
+            all_stores = [s["store_id"] for s in stores_cursor]
+        user_store_ids = all_stores if all_stores else ["*"]
+    
     # Validate store access if store_id provided
     active_store = request.store_id
-    if active_store and active_store not in user["store_ids"]:
-        # Allow ADMIN/SUPERADMIN to access any store
+    if active_store and active_store not in user_store_ids and "*" not in user_store_ids:
         if not any(r in ["ADMIN", "SUPERADMIN"] for r in user["roles"]):
             raise HTTPException(status_code=403, detail="No access to this store")
     
@@ -154,8 +190,8 @@ async def login(request: LoginRequest):
         "user_id": user["user_id"],
         "username": user["username"],
         "roles": user["roles"],
-        "store_ids": user["store_ids"],
-        "active_store_id": active_store or user["store_ids"][0] if user["store_ids"] else None
+        "store_ids": user_store_ids,
+        "active_store_id": active_store or (user_store_ids[0] if user_store_ids and user_store_ids[0] != "*" else None)
     }
     
     access_token = create_access_token(token_data)
@@ -168,7 +204,7 @@ async def login(request: LoginRequest):
             "username": user["username"],
             "full_name": user["full_name"],
             "roles": user["roles"],
-            "store_ids": user["store_ids"],
+            "store_ids": user_store_ids,
             "active_store_id": token_data["active_store_id"]
         }
     )
@@ -224,8 +260,28 @@ async def change_password(
     """
     Change user password
     """
-    # TODO: Verify current password and update in database
-    return {"message": "Password changed successfully"}
+    db = get_db()
+    
+    if db.is_connected and db.users:
+        # Find user
+        user = db.users.find_one({"username": current_user["username"]})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Verify current password
+        if not verify_password(request.current_password, user.get("password_hash", "")):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        
+        # Update password
+        new_hash = hash_password(request.new_password)
+        db.users.update_one(
+            {"username": current_user["username"]},
+            {"$set": {"password_hash": new_hash, "updated_at": datetime.now(timezone.utc)}}
+        )
+        
+        return {"message": "Password changed successfully"}
+    
+    raise HTTPException(status_code=503, detail="Database not available")
 
 
 @router.post("/switch-store/{store_id}")
@@ -233,7 +289,9 @@ async def switch_store(store_id: str, current_user: dict = Depends(get_current_u
     """
     Switch active store context
     """
-    if store_id not in current_user["store_ids"]:
+    user_store_ids = current_user.get("store_ids", [])
+    
+    if store_id not in user_store_ids and "*" not in user_store_ids:
         if not any(r in ["ADMIN", "SUPERADMIN"] for r in current_user["roles"]):
             raise HTTPException(status_code=403, detail="No access to this store")
     
@@ -242,7 +300,7 @@ async def switch_store(store_id: str, current_user: dict = Depends(get_current_u
         "user_id": current_user["user_id"],
         "username": current_user["username"],
         "roles": current_user["roles"],
-        "store_ids": current_user["store_ids"],
+        "store_ids": user_store_ids,
         "active_store_id": store_id
     }
     
