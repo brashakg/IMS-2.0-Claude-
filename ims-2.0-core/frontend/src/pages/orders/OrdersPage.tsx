@@ -19,12 +19,217 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
+  X,
+  Banknote,
+  Smartphone,
+  Building2,
 } from 'lucide-react';
-import type { OrderStatus, PaymentStatus, Order } from '../../types';
+import type { OrderStatus, PaymentStatus, Order, PaymentMode } from '../../types';
 import { orderApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
+
+// ============================================================================
+// Payment Collection Modal Component
+// ============================================================================
+interface PaymentCollectionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  order: Order;
+}
+
+const PAYMENT_MODES: { id: PaymentMode; label: string; icon: typeof Banknote }[] = [
+  { id: 'CASH', label: 'Cash', icon: Banknote },
+  { id: 'UPI', label: 'UPI', icon: Smartphone },
+  { id: 'CARD', label: 'Card', icon: CreditCard },
+  { id: 'BANK_TRANSFER', label: 'Bank Transfer', icon: Building2 },
+];
+
+function PaymentCollectionModal({ isOpen, onClose, onSuccess, order }: PaymentCollectionModalProps) {
+  const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
+  const [amount, setAmount] = useState(order.balanceDue.toString());
+  const [reference, setReference] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const paymentAmount = parseFloat(amount);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (paymentAmount > order.balanceDue) {
+      toast.error(`Amount cannot exceed balance due (₹${order.balanceDue})`);
+      return;
+    }
+
+    if ((paymentMode === 'UPI' || paymentMode === 'CARD' || paymentMode === 'BANK_TRANSFER') && !reference.trim()) {
+      toast.error('Please enter a reference/transaction ID');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await orderApi.addPayment(order.id, {
+        mode: paymentMode,
+        amount: paymentAmount,
+        reference: reference.trim() || undefined,
+      });
+      toast.success(`Payment of ₹${paymentAmount.toLocaleString('en-IN')} collected successfully`);
+      onSuccess();
+      onClose();
+    } catch (err) {
+      console.error('Failed to add payment:', err);
+      toast.error('Failed to collect payment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Collect Payment</h2>
+            <p className="text-sm text-gray-500">Order: {order.orderNumber}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Balance Info */}
+        <div className="p-4 bg-gray-50 border-b border-gray-200">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-gray-500">Grand Total</span>
+            <span className="font-medium">₹{order.grandTotal.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-gray-500">Amount Paid</span>
+            <span className="text-green-600">₹{order.amountPaid.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-200">
+            <span className="text-red-600">Balance Due</span>
+            <span className="text-red-600">₹{order.balanceDue.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Payment Mode */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Payment Mode</label>
+            <div className="grid grid-cols-2 gap-2">
+              {PAYMENT_MODES.map(mode => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setPaymentMode(mode.id)}
+                  className={clsx(
+                    'flex items-center gap-2 p-3 rounded-lg border-2 transition-colors',
+                    paymentMode === mode.id
+                      ? 'border-bv-red-600 bg-bv-red-50 text-bv-red-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  <mode.icon className="w-5 h-5" />
+                  <span className="font-medium">{mode.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="input-field pl-8"
+                placeholder="Enter amount"
+                min="1"
+                max={order.balanceDue}
+                step="0.01"
+              />
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setAmount(order.balanceDue.toString())}
+                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
+              >
+                Full Amount
+              </button>
+              <button
+                type="button"
+                onClick={() => setAmount((order.balanceDue / 2).toString())}
+                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
+              >
+                50%
+              </button>
+            </div>
+          </div>
+
+          {/* Reference (for non-cash payments) */}
+          {paymentMode !== 'CASH' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {paymentMode === 'UPI' ? 'UPI Reference ID' : paymentMode === 'CARD' ? 'Transaction ID' : 'Reference Number'}
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <input
+                type="text"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                className="input-field"
+                placeholder={`Enter ${paymentMode === 'UPI' ? 'UPI reference' : 'transaction'} ID`}
+              />
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-outline"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary flex items-center gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4" />
+              )}
+              Collect ₹{parseFloat(amount || '0').toLocaleString('en-IN')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // Status configurations
 const ORDER_STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor: string; icon: typeof Clock }> = {
@@ -54,6 +259,9 @@ export function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
+
+  // Modal state
+  const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -298,7 +506,7 @@ export function OrdersPage() {
                     </button>
                     {order.paymentStatus !== 'PAID' && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); toast.info('Payment collection modal coming soon'); }}
+                        onClick={(e) => { e.stopPropagation(); setPaymentOrder(order); }}
                         className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
                       >
                         <CreditCard className="w-3 h-3" />
@@ -397,7 +605,7 @@ export function OrdersPage() {
                   </button>
                   {selectedOrder.balanceDue > 0 && (
                     <button
-                      onClick={() => toast.info('Payment collection modal coming soon')}
+                      onClick={() => { setPaymentOrder(selectedOrder); setSelectedOrder(null); }}
                       className="btn-outline flex-1 flex items-center justify-center gap-2"
                     >
                       <CreditCard className="w-4 h-4" />
@@ -409,6 +617,19 @@ export function OrdersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Payment Collection Modal */}
+      {paymentOrder && (
+        <PaymentCollectionModal
+          isOpen={true}
+          onClose={() => setPaymentOrder(null)}
+          onSuccess={() => {
+            loadOrders();
+            setPaymentOrder(null);
+          }}
+          order={paymentOrder}
+        />
       )}
     </div>
   );

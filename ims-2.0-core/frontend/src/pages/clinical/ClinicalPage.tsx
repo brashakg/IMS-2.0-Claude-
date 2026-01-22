@@ -16,11 +16,285 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
+  X,
+  Search,
+  UserPlus,
 } from 'lucide-react';
-import { clinicalApi } from '../../services/api';
+import { clinicalApi, customerApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import type { Customer, Patient } from '../../types';
 import clsx from 'clsx';
+
+// ============================================================================
+// Add to Queue Modal Component
+// ============================================================================
+interface AddToQueueModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  storeId: string;
+}
+
+function AddToQueueModal({ isOpen, onClose, onSuccess, storeId }: AddToQueueModalProps) {
+  const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Customer[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [reason, setReason] = useState('Eye Test');
+
+  const COMMON_REASONS = [
+    'Eye Test',
+    'Prescription Check',
+    'Contact Lens Fitting',
+    'Follow-up',
+    'Complaint',
+    'Other',
+  ];
+
+  const handleSearch = async () => {
+    if (searchQuery.length < 3) return;
+
+    setIsSearching(true);
+    try {
+      const response = await customerApi.getCustomers({ search: searchQuery });
+      const customers = response?.customers || response || [];
+      setSearchResults(Array.isArray(customers) ? customers : []);
+    } catch (err) {
+      console.error('Failed to search customers:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    // Auto-select first patient if exists
+    if (customer.patients?.length > 0) {
+      setSelectedPatient(customer.patients[0]);
+    }
+    setSearchResults([]);
+    setSearchQuery('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedCustomer) {
+      toast.error('Please select a customer');
+      return;
+    }
+
+    if (!selectedPatient) {
+      toast.error('Please select a patient');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await clinicalApi.addToQueue({
+        storeId: storeId,
+        customerId: selectedCustomer.id,
+        patientName: selectedPatient.name,
+        customerPhone: selectedCustomer.phone,
+        reason: reason,
+      });
+      toast.success(`${selectedPatient.name} added to queue`);
+      onSuccess();
+      onClose();
+      // Reset form
+      setSelectedCustomer(null);
+      setSelectedPatient(null);
+      setReason('Eye Test');
+    } catch (err) {
+      console.error('Failed to add to queue:', err);
+      toast.error('Failed to add patient to queue');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Add Patient to Queue</h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Customer Search */}
+          {!selectedCustomer ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Search Customer <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
+                  className="input-field pl-10"
+                  placeholder="Search by name or phone..."
+                />
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  disabled={searchQuery.length < 3 || isSearching}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 btn-primary py-1 px-3 text-sm"
+                >
+                  {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                </button>
+              </div>
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="mt-2 border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+                  {searchResults.map(customer => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => handleSelectCustomer(customer)}
+                      className="w-full p-3 text-left hover:bg-gray-50 border-b last:border-b-0 flex items-center gap-3"
+                    >
+                      <div className="w-8 h-8 bg-bv-red-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-bv-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{customer.name}</p>
+                        <p className="text-sm text-gray-500">{customer.phone}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Selected Customer */
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-bv-red-100 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-bv-red-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedCustomer.name}</p>
+                    <p className="text-sm text-gray-500">{selectedCustomer.phone}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedCustomer(null); setSelectedPatient(null); }}
+                  className="text-sm text-bv-red-600 hover:underline"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Patient Selection */}
+          {selectedCustomer && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Select Patient <span className="text-red-500">*</span>
+              </label>
+              {selectedCustomer.patients && selectedCustomer.patients.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedCustomer.patients.map(patient => (
+                    <button
+                      key={patient.id}
+                      type="button"
+                      onClick={() => setSelectedPatient(patient)}
+                      className={clsx(
+                        'w-full p-3 text-left rounded-lg border-2 transition-colors',
+                        selectedPatient?.id === patient.id
+                          ? 'border-bv-red-600 bg-bv-red-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <UserPlus className={clsx(
+                          'w-5 h-5',
+                          selectedPatient?.id === patient.id ? 'text-bv-red-600' : 'text-gray-400'
+                        )} />
+                        <div>
+                          <p className="font-medium">{patient.name}</p>
+                          {patient.relation && (
+                            <p className="text-sm text-gray-500">{patient.relation}</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 p-3 bg-yellow-50 rounded-lg">
+                  No patients found for this customer. Please add a patient first.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Reason */}
+          {selectedPatient && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="input-field"
+              >
+                {COMMON_REASONS.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-outline"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary flex items-center gap-2"
+              disabled={isSubmitting || !selectedCustomer || !selectedPatient}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              Add to Queue
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 // Types
 interface QueueItem {
@@ -62,6 +336,9 @@ export function ClinicalPage() {
 
   // UI state
   const [activeTab, setActiveTab] = useState<'queue' | 'completed'>('queue');
+
+  // Modal state
+  const [showAddToQueueModal, setShowAddToQueueModal] = useState(false);
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -154,7 +431,7 @@ export function ClinicalPage() {
           </button>
           {canAddPatient && (
             <button
-              onClick={() => toast.info('Add patient to queue feature coming soon')}
+              onClick={() => setShowAddToQueueModal(true)}
               className="btn-primary flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -390,6 +667,16 @@ export function ClinicalPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Add to Queue Modal */}
+      {user?.activeStoreId && (
+        <AddToQueueModal
+          isOpen={showAddToQueueModal}
+          onClose={() => setShowAddToQueueModal(false)}
+          onSuccess={loadData}
+          storeId={user.activeStoreId}
+        />
       )}
     </div>
   );

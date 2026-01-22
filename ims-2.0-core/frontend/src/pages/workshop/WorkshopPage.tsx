@@ -17,6 +17,11 @@ import {
   Timer,
   Loader2,
   RefreshCw,
+  X,
+  ChevronRight,
+  Calendar,
+  Package,
+  FileText,
 } from 'lucide-react';
 import type { JobStatus, JobPriority } from '../../types';
 import { workshopApi } from '../../services/api';
@@ -64,9 +69,262 @@ const PRIORITY_CONFIG: Record<JobPriority, { label: string; class: string; icon:
   URGENT: { label: 'Urgent', class: 'text-red-500', icon: Zap },
 };
 
+// Status transition flow
+const STATUS_FLOW: Record<JobStatus, JobStatus[]> = {
+  CREATED: ['LENS_ORDERED', 'CANCELLED'],
+  LENS_ORDERED: ['LENS_RECEIVED', 'CANCELLED'],
+  LENS_RECEIVED: ['IN_PROGRESS', 'CANCELLED'],
+  IN_PROGRESS: ['QC_PENDING', 'CANCELLED'],
+  QC_PENDING: ['QC_PASSED', 'QC_FAILED'],
+  QC_PASSED: ['READY'],
+  QC_FAILED: ['IN_PROGRESS'],
+  READY: ['DELIVERED'],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+// ============================================================================
+// Job Details Modal Component
+// ============================================================================
+interface JobDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onStatusUpdate: () => void;
+  job: Job;
+}
+
+function JobDetailsModal({ isOpen, onClose, onStatusUpdate, job }: JobDetailsModalProps) {
+  const toast = useToast();
+  const { hasRole } = useAuth();
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const canUpdateStatus = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'WORKSHOP_STAFF']);
+  const statusConfig = STATUS_CONFIG[job.status];
+  const priorityConfig = PRIORITY_CONFIG[job.priority];
+  const PriorityIcon = priorityConfig.icon;
+  const nextStatuses = STATUS_FLOW[job.status] || [];
+
+  const handleStatusChange = async (newStatus: JobStatus) => {
+    setIsUpdating(true);
+    try {
+      await workshopApi.updateJobStatus(job.id, newStatus);
+      toast.success(`Job status updated to ${STATUS_CONFIG[newStatus].label}`);
+      onStatusUpdate();
+      onClose();
+    } catch (err) {
+      console.error('Failed to update job status:', err);
+      toast.error('Failed to update job status');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const isOverdue = new Date(job.promisedDate) < new Date() && !['READY', 'DELIVERED', 'CANCELLED'].includes(job.status);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900">{job.jobNumber}</h2>
+              <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium', statusConfig.class)}>
+                {statusConfig.label}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500">Order: {job.orderNumber}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 space-y-4">
+          {/* Priority & Dates */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <PriorityIcon className={clsx('w-5 h-5', priorityConfig.class)} />
+              <span className={clsx('font-medium', priorityConfig.class)}>{priorityConfig.label} Priority</span>
+            </div>
+            {isOverdue && (
+              <span className="badge-error flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Overdue
+              </span>
+            )}
+          </div>
+
+          {/* Customer Info */}
+          <div className="p-3 border border-gray-200 rounded-lg">
+            <p className="text-sm font-medium text-gray-500 mb-2">Customer</p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-bv-red-100 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-bv-red-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">{job.customerName}</p>
+                <p className="text-sm text-gray-500 flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {job.customerPhone}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Product Details */}
+          <div className="p-3 border border-gray-200 rounded-lg">
+            <p className="text-sm font-medium text-gray-500 mb-2">Product Details</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Package className="w-4 h-4 text-gray-400" />
+                <span className="font-medium">{job.frameName}</span>
+                {job.frameBarcode && (
+                  <span className="text-xs text-gray-500">({job.frameBarcode})</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-gray-400" />
+                <span>{job.lensType}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 border border-gray-200 rounded-lg">
+              <p className="text-sm font-medium text-gray-500 mb-1">Created</p>
+              <div className="flex items-center gap-1 text-gray-900">
+                <Calendar className="w-4 h-4 text-gray-400" />
+                <span>{formatDate(job.createdAt)}</span>
+              </div>
+              <p className="text-xs text-gray-500">{formatTime(job.createdAt)}</p>
+            </div>
+            <div className={clsx(
+              'p-3 border rounded-lg',
+              isOverdue ? 'border-red-300 bg-red-50' : 'border-gray-200'
+            )}>
+              <p className="text-sm font-medium text-gray-500 mb-1">Promise Date</p>
+              <div className={clsx(
+                'flex items-center gap-1',
+                isOverdue ? 'text-red-600' : 'text-gray-900'
+              )}>
+                <Calendar className="w-4 h-4" />
+                <span className="font-medium">{formatDate(job.promisedDate)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          {job.notes && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="w-4 h-4 text-yellow-600" />
+                <p className="text-sm font-medium text-yellow-800">Notes</p>
+              </div>
+              <p className="text-sm text-yellow-700">{job.notes}</p>
+            </div>
+          )}
+
+          {/* Assigned To */}
+          {job.assignedTo && (
+            <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+              <span className="text-sm text-gray-500">Assigned To</span>
+              <span className="font-medium text-gray-900">{job.assignedTo}</span>
+            </div>
+          )}
+
+          {/* Progress */}
+          <div>
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-gray-500">Progress</span>
+              <span className="text-gray-500">Step {statusConfig.step} of 8</span>
+            </div>
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={clsx(
+                  'h-full transition-all duration-300',
+                  job.status === 'QC_FAILED' ? 'bg-red-500' : 'bg-bv-red-600'
+                )}
+                style={{ width: `${(statusConfig.step / 8) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Status Update Actions */}
+          {canUpdateStatus && nextStatuses.length > 0 && (
+            <div className="pt-4 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-2">Update Status</p>
+              <div className="flex flex-wrap gap-2">
+                {nextStatuses.map(nextStatus => {
+                  const nextConfig = STATUS_CONFIG[nextStatus];
+                  return (
+                    <button
+                      key={nextStatus}
+                      onClick={() => handleStatusChange(nextStatus)}
+                      disabled={isUpdating}
+                      className={clsx(
+                        'px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors',
+                        nextStatus === 'CANCELLED'
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : 'bg-bv-red-100 text-bv-red-700 hover:bg-bv-red-200',
+                        isUpdating && 'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                      {nextConfig.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={onClose}
+            className="btn-outline w-full"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WorkshopPage() {
   const { user, hasRole } = useAuth();
-  const toast = useToast();
+  const _toast = useToast();
+  // Toast reserved for future use in page-level notifications
+  void _toast;
 
   // Data state
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -75,6 +333,9 @@ export function WorkshopPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'ALL' | 'ACTIVE'>('ACTIVE');
   const [priorityFilter, setPriorityFilter] = useState<JobPriority | 'ALL'>('ALL');
+
+  // Modal state
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -359,7 +620,7 @@ export function WorkshopPage() {
                       </p>
                     )}
                     <button
-                      onClick={() => toast.info(`View job details: ${job.jobNumber}`)}
+                      onClick={() => setSelectedJob(job)}
                       className="btn-outline text-sm flex items-center gap-1"
                     >
                       <Eye className="w-4 h-4" />
@@ -389,6 +650,16 @@ export function WorkshopPage() {
           })
         )}
       </div>
+
+      {/* Job Details Modal */}
+      {selectedJob && (
+        <JobDetailsModal
+          isOpen={true}
+          onClose={() => setSelectedJob(null)}
+          onStatusUpdate={loadJobs}
+          job={selectedJob}
+        />
+      )}
     </div>
   );
 }
