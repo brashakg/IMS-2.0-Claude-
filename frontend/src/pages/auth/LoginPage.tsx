@@ -24,7 +24,7 @@ export function LoginPage() {
     setError('');
 
     if (!email || !password) {
-      setError('Please enter email and password');
+      setError('Please enter username and password');
       return;
     }
 
