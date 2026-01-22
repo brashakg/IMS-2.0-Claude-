@@ -9,10 +9,17 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import time
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Import database
+from database.connection import init_db, close_db, get_db
 
 # Import routers
 from .routers import (
@@ -38,10 +45,15 @@ from .routers import (
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("🚀 Starting IMS 2.0 API Server...")
-    # Initialize database connection here if needed
+    # Initialize database connection
+    if init_db():
+        logger.info("✅ MongoDB connected successfully")
+    else:
+        logger.warning("⚠️ MongoDB connection failed - running in limited mode")
     yield
     # Shutdown
     logger.info("🛑 Shutting down IMS 2.0 API Server...")
+    close_db()
 
 
 # Create FastAPI application
