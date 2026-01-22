@@ -4,7 +4,6 @@
 
 import { useState } from 'react';
 import {
-  Users,
   Clock,
   Calendar,
   CheckCircle,
@@ -13,7 +12,6 @@ import {
   User,
   AlertTriangle,
   FileText,
-  Plus,
 } from 'lucide-react';
 import clsx from 'clsx';
 

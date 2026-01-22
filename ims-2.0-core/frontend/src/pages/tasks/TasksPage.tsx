@@ -12,9 +12,6 @@ import {
   Calendar,
   User,
   Phone,
-  Tag,
-  Filter,
-  ChevronDown,
   ClipboardCheck,
   ListTodo,
 } from 'lucide-react';

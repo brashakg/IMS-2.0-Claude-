@@ -2,7 +2,7 @@
 // IMS 2.0 - Customers Page
 // ============================================================================
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Search,
   Plus,
@@ -19,7 +19,7 @@ import {
   Edit2,
   Building2,
 } from 'lucide-react';
-import type { Customer, Patient, Prescription, ProductCategory } from '../../types';
+import type { Customer, Patient, Prescription } from '../../types';
 import clsx from 'clsx';
 
 // Mock customers data
@@ -116,6 +116,9 @@ export function CustomersPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [showNewPatientModal, setShowNewPatientModal] = useState(false);
+  // Modals will be implemented later
+  void showNewCustomerModal;
+  void showNewPatientModal;
   const [filterType, setFilterType] = useState<'ALL' | 'B2C' | 'B2B'>('ALL');
 
   // Filter customers

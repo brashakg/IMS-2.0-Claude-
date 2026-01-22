@@ -3,9 +3,9 @@
 // ============================================================================
 // Role-based discount limits enforced by user.discountCap
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { X, Percent, AlertTriangle, Tag } from 'lucide-react';
-import type { CartItem } from '../../pages/pos/POSPage';
+import type { CartItem } from '../../types';
 import clsx from 'clsx';
 
 interface DiscountModalProps {

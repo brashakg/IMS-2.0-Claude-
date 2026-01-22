@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   Plus,
-  Filter,
   Download,
   BarChart3,
   Tag,
@@ -59,6 +58,8 @@ export function InventoryPage() {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null);
   const [activeTab, setActiveTab] = useState<ViewTab>('catalog');
   const [showTransferModal, setShowTransferModal] = useState(false);
+  // Modal will be implemented later
+  void showTransferModal;
 
   // Filter inventory
   const filteredInventory = mockInventory.filter(item => {

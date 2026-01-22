@@ -10,11 +10,8 @@ import {
   CheckCircle,
   Play,
   Plus,
-  Search,
   FileText,
-  Calendar,
   Phone,
-  ChevronRight,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -97,6 +94,8 @@ const STATUS_CONFIG: Record<QueueStatus, { label: string; class: string }> = {
 export function ClinicalPage() {
   const [activeTab, setActiveTab] = useState<'queue' | 'completed'>('queue');
   const [showNewTestModal, setShowNewTestModal] = useState(false);
+  // Modal will be implemented later
+  void showNewTestModal;
 
   const waitingCount = mockQueue.filter(q => q.status === 'WAITING').length;
   const inProgressCount = mockQueue.filter(q => q.status === 'IN_PROGRESS').length;
@@ -205,7 +204,7 @@ export function ClinicalPage() {
               <p>No patients in queue</p>
             </div>
           ) : (
-            mockQueue.map((item, index) => {
+            mockQueue.map((item) => {
               const statusConfig = STATUS_CONFIG[item.status];
               return (
                 <div

@@ -17,7 +17,7 @@ export function ProtectedRoute({
   allowedRoles,
   requirePermission,
 }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, user, hasRole, hasPermission } = useAuth();
+  const { isAuthenticated, isLoading, hasRole, hasPermission } = useAuth();
   const location = useLocation();
 
   // Show loading state

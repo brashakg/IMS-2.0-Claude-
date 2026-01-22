@@ -6,9 +6,7 @@
 
 import { useState } from 'react';
 import {
-  ClipboardCheck,
   CheckCircle,
-  Circle,
   Clock,
   User,
   Calendar,

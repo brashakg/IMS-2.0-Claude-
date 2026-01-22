@@ -14,17 +14,19 @@ import { useToast } from '../../context/ToastContext';
 import { CustomerSearch } from '../../components/pos/CustomerSearch';
 import { PrescriptionPanel } from '../../components/pos/PrescriptionPanel';
 import { PrescriptionSelectModal } from '../../components/pos/PrescriptionSelectModal';
-import { ProductSearchModal, SearchResultProduct } from '../../components/pos/ProductSearchModal';
-import { LensDetailsModal, LensDetails } from '../../components/pos/LensDetailsModal';
+import { ProductSearchModal } from '../../components/pos/ProductSearchModal';
+import type { SearchResultProduct } from '../../components/pos/ProductSearchModal';
+import { LensDetailsModal } from '../../components/pos/LensDetailsModal';
+import type { LensDetails } from '../../components/pos/LensDetailsModal';
 import { OrderDetailsPanel } from '../../components/pos/OrderDetailsPanel';
 import { PaymentCollectionPanel } from '../../components/pos/PaymentCollectionPanel';
 import { POS_CATEGORIES, CATEGORY_CONFIG, getCategoryConfigByPOSId } from '../../types/productAttributes';
 import type { Customer, Patient, Prescription, Payment, CartItem, ProductCategory, UserRole } from '../../types';
-import { inventoryApi, orderApi, prescriptionApi } from '../../services/api';
+import { inventoryApi, orderApi } from '../../services/api';
 import {
   User, ShoppingCart, X, AlertCircle, Check, Plus, Printer, Save, RotateCcw,
   Glasses, Sun, Eye, Watch, Ear, Package, Wrench, Barcode, Smartphone,
-  Trash2, ChevronDown, ChevronUp, Link2, Unlink, Edit3, AlertTriangle,
+  Trash2, ChevronDown, ChevronUp, Link2, Unlink, AlertTriangle,
   BookOpen, Cpu, Sparkles, Clock,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -573,7 +575,7 @@ export function POSPage() {
   }, [draftOrderId, draftOrderNumber, customer, orderItems, toast]);
 
   // Build order data for API
-  const buildOrderData = useCallback((status: string) => {
+  const buildOrderData = useCallback((status: 'DRAFT' | 'CONFIRMED' | 'IN_PROGRESS' | 'READY' | 'DELIVERED' | 'CANCELLED') => {
     return {
       customerId: customer!.id,
       customerName: customer!.name,
@@ -583,7 +585,8 @@ export function POSPage() {
       patientName: selectedPatient?.name,
       storeId: user?.activeStoreId || '',
       items: orderItems.map(item => ({
-        itemType: item.itemType,
+        id: item.id, // Will be replaced by server-generated ID
+        itemType: item.itemType || item.category,
         productId: item.productId,
         productName: item.productName,
         sku: item.sku,
@@ -599,9 +602,11 @@ export function POSPage() {
         linkedFrameId: item.linkedFrameId,
       })),
       payments: payments.map(p => ({
+        id: p.id,
         mode: p.mode,
         amount: p.amount,
         reference: p.reference,
+        paidAt: p.paidAt || new Date().toISOString(),
       })),
       subtotal,
       totalDiscount: orderDiscount.amount,
@@ -610,7 +615,7 @@ export function POSPage() {
       amountPaid: totalPaid,
       balanceDue: Math.max(0, balanceDue),
       orderStatus: status,
-      paymentStatus: balanceDue <= 0 ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : 'UNPAID',
+      paymentStatus: balanceDue <= 0 ? 'PAID' as 'PAID' : totalPaid > 0 ? 'PARTIAL' as 'PARTIAL' : 'PENDING' as 'PENDING',
       notes: orderDetails.notes,
       expectedDelivery: orderDetails.deliveryDate
         ? new Date(`${orderDetails.deliveryDate}T${orderDetails.deliveryTime || '00:00'}`).toISOString()

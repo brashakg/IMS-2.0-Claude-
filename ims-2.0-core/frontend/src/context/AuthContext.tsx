@@ -2,8 +2,9 @@
 // IMS 2.0 - Authentication Context
 // ============================================================================
 
-import { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import type { User, AuthState, LoginCredentials, LoginResponse, UserRole, Store } from '../types';
+import { createContext, useContext, useReducer, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import type { User, AuthState, LoginCredentials, LoginResponse, UserRole } from '../types';
 import { authApi } from '../services/api';
 
 // ============================================================================
@@ -114,8 +115,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (token && userJson) {
         try {
-          const user = JSON.parse(userJson) as User;
-          // Verify token is still valid
+          // Verify stored user JSON is valid (parsing test)
+          JSON.parse(userJson) as User;
+          // Verify token is still valid with API
           const profile = await authApi.getProfile();
           dispatch({
             type: 'LOGIN_SUCCESS',

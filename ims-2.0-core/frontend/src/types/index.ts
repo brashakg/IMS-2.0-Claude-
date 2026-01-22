@@ -21,17 +21,31 @@ export type UserRole =
 // Product Categories - complete list
 export type ProductCategory =
   | 'FRAME'
+  | 'FR'
   | 'SUNGLASS'
+  | 'SG'
   | 'READING_GLASSES'
+  | 'RG'
   | 'OPTICAL_LENS'
+  | 'LS'
   | 'CONTACT_LENS'
+  | 'CL'
   | 'COLORED_CONTACT_LENS'
   | 'WATCH'
+  | 'WT'
   | 'SMARTWATCH'
+  | 'SMTWT'
   | 'SMARTGLASSES'
+  | 'SMTFR'
+  | 'SMTSG'
   | 'WALL_CLOCK'
+  | 'CK'
+  | 'HEARING_AID'
+  | 'HA'
   | 'ACCESSORIES'
-  | 'SERVICES';
+  | 'ACC'
+  | 'SERVICES'
+  | 'SRV';
 
 // ============================================================================
 // Auth Types
@@ -221,6 +235,31 @@ export type PaymentMode =
   | 'EMI'
   | 'CREDIT'
   | 'GIFT_VOUCHER';
+
+// Cart Item for POS (before order is created)
+export interface CartItem {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  barcode?: string;
+  category: ProductCategory;
+  itemType?: ProductCategory | 'LENS' | 'SERVICE';
+  brand?: string;
+  quantity: number;
+  mrp: number;
+  offerPrice: number;
+  unitPrice: number;
+  discountPercent: number;
+  discountAmount: number;
+  finalPrice: number;
+  gstRate?: number;
+  hsnCode?: string;
+  prescriptionId?: string;
+  requiresPrescription?: boolean;
+  prescriptionLinked?: boolean;
+  stockId?: string;
+}
 
 export interface OrderItem {
   id: string;

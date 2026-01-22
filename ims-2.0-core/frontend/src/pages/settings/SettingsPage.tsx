@@ -12,13 +12,12 @@
 // - System Settings
 // NO MOCK DATA - All data from API
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Settings, Store, Users, Tag, Percent, Bell, Shield, Database, Globe,
-  ChevronRight, Plus, Edit2, Trash2, Save, X, Check, AlertCircle,
-  RefreshCw, Eye, EyeOff, Copy, ToggleLeft, ToggleRight, Upload, Download,
-  Link, Unlink, CreditCard, MessageSquare, FileText, Boxes, CircleDot,
-  Glasses, Sun, Watch, Ear, Package, Wrench, Search, Filter, MoreVertical,
+  Store, Users, Tag, Percent, Database, Globe,
+  ChevronRight, Plus, Edit2, Trash2, X, Check, AlertCircle,
+  RefreshCw, ToggleLeft, ToggleRight, Upload, Download,
+  Link, CreditCard, MessageSquare, FileText, Boxes, CircleDot,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -211,7 +210,9 @@ export function SettingsPage() {
   // Data state
   const [stores, setStores] = useState<Store[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [categories, setCategories] = useState<Category[]>(CATEGORY_DEFINITIONS);
+  const [categories, _setCategories] = useState<Category[]>(CATEGORY_DEFINITIONS);
+  // Category setter reserved for future API integration
+  void _setCategories;
   const [brands, setBrands] = useState<Brand[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>(INTEGRATION_DEFINITIONS);
 
@@ -222,8 +223,12 @@ export function SettingsPage() {
   const [lensAddons, setLensAddons] = useState<{ id: string; name: string; code: string; price: number }[]>([]);
 
   // Discount state
-  const [roleDiscountCaps, setRoleDiscountCaps] = useState<Record<string, { mass: number; premium: number; luxury: number }>>({});
-  const [tierDiscounts, setTierDiscounts] = useState<Record<string, number>>({});
+  const [_roleDiscountCaps, setRoleDiscountCaps] = useState<Record<string, { mass: number; premium: number; luxury: number }>>({});
+  // Role discount caps state for future display
+  void _roleDiscountCaps;
+  const [_tierDiscounts, setTierDiscounts] = useState<Record<string, number>>({});
+  // Tier discounts for future display
+  void _tierDiscounts;
 
   // System state
   const [systemStatus, setSystemStatus] = useState<{ database: string; api: string; version: string } | null>(null);

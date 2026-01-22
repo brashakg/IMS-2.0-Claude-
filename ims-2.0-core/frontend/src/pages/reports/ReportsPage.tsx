@@ -7,7 +7,6 @@ import {
   BarChart3,
   TrendingUp,
   Download,
-  Calendar,
   IndianRupee,
   Package,
   Users,
@@ -15,7 +14,6 @@ import {
   FileText,
   Eye,
   Printer,
-  Filter,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -102,7 +100,10 @@ const REPORT_CARDS = [
 export function ReportsPage() {
   const [activeTab, setActiveTab] = useState<ReportType>('sales');
   const [dateRange, setDateRange] = useState<DateRange>('month');
-  const [showDetailedReport, setShowDetailedReport] = useState(false);
+  const [_showDetailedReport, _setShowDetailedReport] = useState(false);
+  // Detailed report state reserved for future implementation
+  void _showDetailedReport;
+  void _setShowDetailedReport;
 
   const filteredReports = REPORT_CARDS.filter(r => r.category === activeTab);
 

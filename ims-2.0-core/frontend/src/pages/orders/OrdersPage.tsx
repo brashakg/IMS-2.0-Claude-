@@ -11,8 +11,6 @@ import {
   XCircle,
   Truck,
   Package,
-  ChevronRight,
-  Filter,
   Calendar,
   User,
   CreditCard,
@@ -167,7 +165,10 @@ export function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
-  const [selectedOrder, setSelectedOrder] = useState<typeof mockOrders[0] | null>(null);
+  const [_selectedOrder, _setSelectedOrder] = useState<typeof mockOrders[0] | null>(null);
+  // Order detail state reserved for future implementation
+  void _selectedOrder;
+  void _setSelectedOrder;
 
   // Filter orders
   const filteredOrders = mockOrders.filter(order => {

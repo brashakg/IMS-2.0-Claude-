@@ -6,16 +6,12 @@ import { useState } from 'react';
 import {
   Wrench,
   Clock,
-  Package,
   CheckCircle,
   AlertTriangle,
   Search,
-  Filter,
-  Play,
   Eye,
   Phone,
   User,
-  Calendar,
   Zap,
   Timer,
 } from 'lucide-react';

@@ -18,68 +18,19 @@ interface PrescriptionSelectModalProps {
   currentPrescriptionId?: string;
 }
 
-// Mock prescriptions - In production these come from API
-const MOCK_PRESCRIPTIONS: Prescription[] = [
-  {
-    id: 'rx-1',
-    patientId: 'patient-1',
-    customerId: 'cust-1',
-    storeId: 'store-1',
-    optometristId: 'opt-1',
-    optometristName: 'Dr. Neha Sharma',
-    testDate: '2025-12-15',
-    rightEye: { sphere: -2.00, cylinder: -0.50, axis: 180, add: null, pd: 32 },
-    leftEye: { sphere: -2.25, cylinder: -0.75, axis: 175, add: null, pd: 31 },
-    recommendation: 'Single vision lenses recommended. Blue light filter suggested for computer use.',
-    status: 'COMPLETED',
-    validityMonths: 12,
-    createdAt: '2025-12-15T10:30:00Z',
-    updatedAt: '2025-12-15T10:30:00Z',
-  },
-  {
-    id: 'rx-2',
-    patientId: 'patient-1',
-    customerId: 'cust-1',
-    storeId: 'store-1',
-    optometristId: 'opt-2',
-    optometristName: 'Dr. Amit Patel',
-    testDate: '2025-06-20',
-    rightEye: { sphere: -1.75, cylinder: -0.50, axis: 180, add: null, pd: 32 },
-    leftEye: { sphere: -2.00, cylinder: -0.50, axis: 175, add: null, pd: 31 },
-    recommendation: 'Progressive lenses if experiencing near vision difficulty.',
-    status: 'COMPLETED',
-    validityMonths: 12,
-    createdAt: '2025-06-20T14:00:00Z',
-    updatedAt: '2025-06-20T14:00:00Z',
-  },
-  {
-    id: 'rx-3',
-    patientId: 'patient-1',
-    customerId: 'cust-1',
-    storeId: 'store-2',
-    isExternal: true,
-    externalSource: 'Dr. Vision Clinic, Delhi',
-    testDate: '2024-11-10',
-    rightEye: { sphere: -1.50, cylinder: -0.25, axis: 170, add: null, pd: 32 },
-    leftEye: { sphere: -1.75, cylinder: -0.50, axis: 165, add: null, pd: 31 },
-    status: 'EXTERNAL',
-    validityMonths: 12,
-    createdAt: '2024-11-10T00:00:00Z',
-    updatedAt: '2024-11-10T00:00:00Z',
-  },
-];
-
 export function PrescriptionSelectModal({
   onClose,
   onSelect,
   onCreateNew,
   patient,
-  customerId,
+  customerId: _customerId,
   currentPrescriptionId,
 }: PrescriptionSelectModalProps) {
+  // customerId may be used for future API calls
+  void _customerId;
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (patient?.id) {
@@ -91,16 +42,15 @@ export function PrescriptionSelectModal({
     if (!patient?.id) return;
 
     setIsLoading(true);
-    setError(null);
+    setErrorMsg(null);
 
     try {
-      // Try API first
       const response = await prescriptionApi.getPrescriptions(patient.id);
       setPrescriptions(response.prescriptions || response || []);
     } catch (err) {
       console.error('Failed to load prescriptions:', err);
-      // Use mock data
-      setPrescriptions(MOCK_PRESCRIPTIONS);
+      setErrorMsg('Failed to load prescriptions. Please try again.');
+      setPrescriptions([]);
     } finally {
       setIsLoading(false);
     }
@@ -168,6 +118,11 @@ export function PrescriptionSelectModal({
           ) : isLoading ? (
             <div className="flex items-center justify-center h-48">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bv-red-600"></div>
+            </div>
+          ) : errorMsg ? (
+            <div className="flex flex-col items-center justify-center h-48 text-red-500">
+              <AlertTriangle className="w-12 h-12 mb-3 opacity-50" />
+              <p>{errorMsg}</p>
             </div>
           ) : prescriptions.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-gray-400">
