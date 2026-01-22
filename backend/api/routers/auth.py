@@ -174,7 +174,7 @@ async def login(request: LoginRequest):
     if "*" in user_store_ids or "SUPERADMIN" in user["roles"]:
         # Fetch all stores for superadmin
         all_stores = []
-        if db.is_connected and db.stores:
+        if db.is_connected and db.stores is not None:
             stores_cursor = db.stores.find({}, {"_id": 0, "store_id": 1})
             all_stores = [s["store_id"] for s in stores_cursor]
         user_store_ids = all_stores if all_stores else ["*"]
