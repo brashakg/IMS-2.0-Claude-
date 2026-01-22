@@ -57,6 +57,21 @@ def require_inventory_role(current_user: dict):
 # STOCK ENDPOINTS
 # ============================================================================
 
+@router.get("/")
+async def get_inventory_index(
+    store_id: Optional[str] = Query(None),
+    product_id: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    brand: Optional[str] = Query(None),
+    low_stock: bool = Query(False),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get inventory (alias for /stock)"""
+    return await get_stock(store_id, product_id, category, brand, low_stock, skip, limit, current_user)
+
+
 @router.get("/stock")
 async def get_stock(
     store_id: Optional[str] = Query(None),
