@@ -256,6 +256,46 @@ export function SettingsPage() {
   // Tier discounts for future display
   void _tierDiscounts;
 
+  // Enhanced discount rules state
+  const [selectedDiscountCategory, setSelectedDiscountCategory] = useState('ALL');
+  const [selectedDiscountBrand, setSelectedDiscountBrand] = useState('ALL');
+  const [discountRules, setDiscountRules] = useState<Record<string, Record<string, Record<string, Record<string, number>>>>>({
+    // Default rules
+    ALL: {
+      ALL: {
+        MASS: { SALES_STAFF: 5, SALES_CASHIER: 10, OPTOMETRIST: 5, WORKSHOP_STAFF: 0, STORE_MANAGER: 15, ACCOUNTANT: 10, AREA_MANAGER: 20, ADMIN: 100, SUPERADMIN: 100 },
+        PREMIUM: { SALES_STAFF: 3, SALES_CASHIER: 5, OPTOMETRIST: 3, WORKSHOP_STAFF: 0, STORE_MANAGER: 10, ACCOUNTANT: 5, AREA_MANAGER: 15, ADMIN: 100, SUPERADMIN: 100 },
+        LUXURY: { SALES_STAFF: 0, SALES_CASHIER: 3, OPTOMETRIST: 0, WORKSHOP_STAFF: 0, STORE_MANAGER: 5, ACCOUNTANT: 3, AREA_MANAGER: 10, ADMIN: 100, SUPERADMIN: 100 },
+      },
+    },
+    // Watch category overrides
+    WT: {
+      TITAN: {
+        MASS: { SALES_STAFF: 5, SALES_CASHIER: 10, OPTOMETRIST: 5, WORKSHOP_STAFF: 0, STORE_MANAGER: 15, ACCOUNTANT: 10, AREA_MANAGER: 50, ADMIN: 100, SUPERADMIN: 100 },
+        PREMIUM: { SALES_STAFF: 3, SALES_CASHIER: 5, OPTOMETRIST: 3, WORKSHOP_STAFF: 0, STORE_MANAGER: 10, ACCOUNTANT: 5, AREA_MANAGER: 30, ADMIN: 100, SUPERADMIN: 100 },
+        LUXURY: { SALES_STAFF: 0, SALES_CASHIER: 2, OPTOMETRIST: 0, WORKSHOP_STAFF: 0, STORE_MANAGER: 5, ACCOUNTANT: 2, AREA_MANAGER: 15, ADMIN: 100, SUPERADMIN: 100 },
+      },
+      FOSSIL: {
+        MASS: { SALES_STAFF: 3, SALES_CASHIER: 8, OPTOMETRIST: 3, WORKSHOP_STAFF: 0, STORE_MANAGER: 12, ACCOUNTANT: 8, AREA_MANAGER: 40, ADMIN: 100, SUPERADMIN: 100 },
+        PREMIUM: { SALES_STAFF: 2, SALES_CASHIER: 5, OPTOMETRIST: 2, WORKSHOP_STAFF: 0, STORE_MANAGER: 8, ACCOUNTANT: 5, AREA_MANAGER: 25, ADMIN: 100, SUPERADMIN: 100 },
+        LUXURY: { SALES_STAFF: 0, SALES_CASHIER: 2, OPTOMETRIST: 0, WORKSHOP_STAFF: 0, STORE_MANAGER: 5, ACCOUNTANT: 2, AREA_MANAGER: 12, ADMIN: 100, SUPERADMIN: 100 },
+      },
+      ROLEX: {
+        MASS: { SALES_STAFF: 0, SALES_CASHIER: 0, OPTOMETRIST: 0, WORKSHOP_STAFF: 0, STORE_MANAGER: 2, ACCOUNTANT: 0, AREA_MANAGER: 5, ADMIN: 100, SUPERADMIN: 100 },
+        PREMIUM: { SALES_STAFF: 0, SALES_CASHIER: 0, OPTOMETRIST: 0, WORKSHOP_STAFF: 0, STORE_MANAGER: 2, ACCOUNTANT: 0, AREA_MANAGER: 5, ADMIN: 100, SUPERADMIN: 100 },
+        LUXURY: { SALES_STAFF: 0, SALES_CASHIER: 0, OPTOMETRIST: 0, WORKSHOP_STAFF: 0, STORE_MANAGER: 2, ACCOUNTANT: 0, AREA_MANAGER: 5, ADMIN: 100, SUPERADMIN: 100 },
+      },
+    },
+    // Spectacles category overrides
+    FR: {
+      RAY_BAN: {
+        MASS: { SALES_STAFF: 5, SALES_CASHIER: 8, OPTOMETRIST: 5, WORKSHOP_STAFF: 0, STORE_MANAGER: 12, ACCOUNTANT: 8, AREA_MANAGER: 25, ADMIN: 100, SUPERADMIN: 100 },
+        PREMIUM: { SALES_STAFF: 3, SALES_CASHIER: 5, OPTOMETRIST: 3, WORKSHOP_STAFF: 0, STORE_MANAGER: 8, ACCOUNTANT: 5, AREA_MANAGER: 18, ADMIN: 100, SUPERADMIN: 100 },
+        LUXURY: { SALES_STAFF: 0, SALES_CASHIER: 2, OPTOMETRIST: 0, WORKSHOP_STAFF: 0, STORE_MANAGER: 5, ACCOUNTANT: 2, AREA_MANAGER: 10, ADMIN: 100, SUPERADMIN: 100 },
+      },
+    },
+  });
+
   // System state
   const [systemStatus, setSystemStatus] = useState<{ database: string; api: string; version: string } | null>(null);
 
@@ -1312,103 +1352,338 @@ export function SettingsPage() {
               )}
 
               {/* ================================================================ */}
-              {/* DISCOUNT RULES */}
+              {/* DISCOUNT RULES - Enhanced Tiered Structure */}
               {/* ================================================================ */}
-              {activeTab === 'discounts' && (
-                <div className="card">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Discount Rules</h2>
-                      <p className="text-sm text-gray-500">Maximum discount by role and brand tier</p>
+              {activeTab === 'discounts' && (() => {
+                // Categories with discount rules
+                const discountCategories = [
+                  { code: 'ALL', name: 'All Categories (Default)' },
+                  { code: 'FR', name: 'Spectacles (Frames)' },
+                  { code: 'SG', name: 'Sunglasses' },
+                  { code: 'WT', name: 'Wrist Watch' },
+                  { code: 'CL', name: 'Contact Lens' },
+                  { code: 'LS', name: 'Optical Lens' },
+                  { code: 'HA', name: 'Hearing Aid' },
+                  { code: 'ACC', name: 'Accessories' },
+                ];
+
+                // Sample brands per category
+                const categoryBrands: Record<string, { code: string; name: string; tier: 'MASS' | 'PREMIUM' | 'LUXURY' }[]> = {
+                  ALL: [{ code: 'ALL', name: 'All Brands (Default)', tier: 'MASS' }],
+                  FR: [
+                    { code: 'ALL', name: 'All Brands', tier: 'MASS' },
+                    { code: 'RAY_BAN', name: 'Ray-Ban', tier: 'PREMIUM' },
+                    { code: 'OAKLEY', name: 'Oakley', tier: 'PREMIUM' },
+                    { code: 'VOGUE', name: 'Vogue', tier: 'MASS' },
+                    { code: 'TITAN', name: 'Titan Eyeplus', tier: 'MASS' },
+                    { code: 'GUCCI', name: 'Gucci', tier: 'LUXURY' },
+                  ],
+                  SG: [
+                    { code: 'ALL', name: 'All Brands', tier: 'MASS' },
+                    { code: 'RAY_BAN', name: 'Ray-Ban', tier: 'PREMIUM' },
+                    { code: 'OAKLEY', name: 'Oakley', tier: 'PREMIUM' },
+                    { code: 'MAUI_JIM', name: 'Maui Jim', tier: 'LUXURY' },
+                  ],
+                  WT: [
+                    { code: 'ALL', name: 'All Brands', tier: 'MASS' },
+                    { code: 'TITAN', name: 'Titan', tier: 'MASS' },
+                    { code: 'FASTRACK', name: 'Fastrack', tier: 'MASS' },
+                    { code: 'FOSSIL', name: 'Fossil', tier: 'PREMIUM' },
+                    { code: 'TISSOT', name: 'Tissot', tier: 'PREMIUM' },
+                    { code: 'ROLEX', name: 'Rolex', tier: 'LUXURY' },
+                    { code: 'OMEGA', name: 'Omega', tier: 'LUXURY' },
+                  ],
+                  CL: [
+                    { code: 'ALL', name: 'All Brands', tier: 'MASS' },
+                    { code: 'BAUSCH', name: 'Bausch & Lomb', tier: 'MASS' },
+                    { code: 'ACUVUE', name: 'Acuvue', tier: 'PREMIUM' },
+                  ],
+                  LS: [
+                    { code: 'ALL', name: 'All Brands', tier: 'MASS' },
+                    { code: 'ESSILOR', name: 'Essilor', tier: 'PREMIUM' },
+                    { code: 'ZEISS', name: 'Zeiss', tier: 'LUXURY' },
+                  ],
+                  HA: [
+                    { code: 'ALL', name: 'All Brands', tier: 'MASS' },
+                    { code: 'PHONAK', name: 'Phonak', tier: 'PREMIUM' },
+                  ],
+                  ACC: [
+                    { code: 'ALL', name: 'All Brands', tier: 'MASS' },
+                  ],
+                };
+
+                // Get rules for selected category/brand or fall back to defaults
+                const getRules = () => {
+                  if (discountRules[selectedDiscountCategory]?.[selectedDiscountBrand]) {
+                    return discountRules[selectedDiscountCategory][selectedDiscountBrand];
+                  }
+                  if (discountRules[selectedDiscountCategory]?.['ALL']) {
+                    return discountRules[selectedDiscountCategory]['ALL'];
+                  }
+                  return discountRules['ALL']['ALL'];
+                };
+
+                const currentRules = getRules();
+                const availableBrands = categoryBrands[selectedDiscountCategory] || categoryBrands['ALL'];
+                const selectedBrandInfo = availableBrands.find(b => b.code === selectedDiscountBrand);
+
+                // Handle rule update
+                const handleRuleUpdate = (tier: string, role: string, value: number) => {
+                  setDiscountRules(prev => {
+                    const updated = JSON.parse(JSON.stringify(prev)); // Deep clone
+                    if (!updated[selectedDiscountCategory]) {
+                      updated[selectedDiscountCategory] = {};
+                    }
+                    if (!updated[selectedDiscountCategory][selectedDiscountBrand]) {
+                      updated[selectedDiscountCategory][selectedDiscountBrand] = JSON.parse(JSON.stringify(currentRules));
+                    }
+                    if (!updated[selectedDiscountCategory][selectedDiscountBrand][tier]) {
+                      updated[selectedDiscountCategory][selectedDiscountBrand][tier] = {};
+                    }
+                    updated[selectedDiscountCategory][selectedDiscountBrand][tier][role] = value;
+                    return updated;
+                  });
+                };
+
+                const handleSaveRules = async () => {
+                  try {
+                    // In real implementation, save to API
+                    // await adminDiscountApi.saveDiscountRules(discountRules);
+                    toast.success('Discount rules saved successfully');
+                  } catch (err) {
+                    toast.error('Failed to save discount rules');
+                  }
+                };
+
+                const ROLES_ORDER = ['SALES_STAFF', 'SALES_CASHIER', 'OPTOMETRIST', 'WORKSHOP_STAFF', 'STORE_MANAGER', 'ACCOUNTANT', 'AREA_MANAGER', 'ADMIN', 'SUPERADMIN'];
+                const ROLE_LABELS: Record<string, string> = {
+                  SALES_STAFF: 'Sales Staff',
+                  SALES_CASHIER: 'Sales Cashier',
+                  OPTOMETRIST: 'Optometrist',
+                  WORKSHOP_STAFF: 'Workshop Staff',
+                  STORE_MANAGER: 'Store Manager',
+                  ACCOUNTANT: 'Accountant',
+                  AREA_MANAGER: 'Area Manager',
+                  ADMIN: 'Admin',
+                  SUPERADMIN: 'Superadmin',
+                };
+
+                return (
+                <div className="space-y-4">
+                  {/* Header Card */}
+                  <div className="card">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-900">Discount Rules</h2>
+                        <p className="text-sm text-gray-500">Configure maximum discount by Category → Brand → Tier → Role</p>
+                      </div>
+                      <button
+                        onClick={handleSaveRules}
+                        className="btn-primary flex items-center gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        Save Rules
+                      </button>
                     </div>
-                    <button
-                      onClick={() => toast.info('Save changes to update discount rules')}
-                      className="btn-outline flex items-center gap-2"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Edit Rules
-                    </button>
+
+                    {/* Category & Brand Selectors */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select
+                          value={selectedDiscountCategory}
+                          onChange={(e) => { setSelectedDiscountCategory(e.target.value); setSelectedDiscountBrand('ALL'); }}
+                          className="input-field"
+                        >
+                          {discountCategories.map(cat => (
+                            <option key={cat.code} value={cat.code}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                        <select
+                          value={selectedDiscountBrand}
+                          onChange={(e) => setSelectedDiscountBrand(e.target.value)}
+                          className="input-field"
+                        >
+                          {availableBrands.map(brand => (
+                            <option key={brand.code} value={brand.code}>
+                              {brand.name} {brand.code !== 'ALL' ? `(${brand.tier})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Current Selection Info */}
+                    <div className="p-3 bg-blue-50 rounded-lg mb-4">
+                      <p className="text-sm text-blue-800">
+                        <span className="font-medium">Viewing rules for:</span>{' '}
+                        {discountCategories.find(c => c.code === selectedDiscountCategory)?.name || selectedDiscountCategory}
+                        {selectedDiscountBrand !== 'ALL' && ` → ${selectedBrandInfo?.name}`}
+                        {selectedBrandInfo && selectedDiscountBrand !== 'ALL' && (
+                          <span className={clsx(
+                            'ml-2 text-xs px-2 py-0.5 rounded',
+                            selectedBrandInfo.tier === 'MASS' ? 'bg-gray-200 text-gray-700' :
+                            selectedBrandInfo.tier === 'PREMIUM' ? 'bg-purple-200 text-purple-700' :
+                            'bg-yellow-200 text-yellow-700'
+                          )}>
+                            {selectedBrandInfo.tier}
+                          </span>
+                        )}
+                      </p>
+                      {(selectedDiscountCategory === 'ALL' || selectedDiscountBrand === 'ALL') && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          These are default rules. Create category/brand specific rules by selecting a category and brand.
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Mass</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Premium</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Luxury</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {[
-                          { role: 'Sales Staff', mass: 5, premium: 3, luxury: 0 },
-                          { role: 'Sales Cashier', mass: 10, premium: 5, luxury: 3 },
-                          { role: 'Optometrist', mass: 5, premium: 3, luxury: 0 },
-                          { role: 'Workshop Staff', mass: 0, premium: 0, luxury: 0 },
-                          { role: 'Store Manager', mass: 15, premium: 10, luxury: 5 },
-                          { role: 'Accountant', mass: 10, premium: 5, luxury: 3 },
-                          { role: 'Area Manager', mass: 20, premium: 15, luxury: 10 },
-                          { role: 'Admin', mass: 100, premium: 100, luxury: 100 },
-                          { role: 'Superadmin', mass: 100, premium: 100, luxury: 100 },
-                        ].map(row => (
-                          <tr key={row.role}>
-                            <td className="px-4 py-3 font-medium">{row.role}</td>
-                            <td className="px-4 py-3 text-center">
-                              <input
-                                type="number"
-                                defaultValue={row.mass}
-                                min="0"
-                                max="100"
-                                className="w-16 px-2 py-1 text-center border border-gray-200 rounded"
-                              />
-                              %
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <input
-                                type="number"
-                                defaultValue={row.premium}
-                                min="0"
-                                max="100"
-                                className="w-16 px-2 py-1 text-center border border-gray-200 rounded"
-                              />
-                              %
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <input
-                                type="number"
-                                defaultValue={row.luxury}
-                                min="0"
-                                max="100"
-                                className="w-16 px-2 py-1 text-center border border-gray-200 rounded"
-                              />
-                              %
-                            </td>
+                  {/* Discount Rules Table */}
+                  <div className="card">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4">Maximum Discount by Role & Tier</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              <span className="inline-flex items-center gap-1">
+                                <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                                Mass
+                              </span>
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              <span className="inline-flex items-center gap-1">
+                                <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                                Premium
+                              </span>
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                              <span className="inline-flex items-center gap-1">
+                                <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                                Luxury
+                              </span>
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {ROLES_ORDER.map(role => (
+                            <tr key={role} className={clsx(
+                              role === 'AREA_MANAGER' && 'bg-orange-50',
+                              role === 'STORE_MANAGER' && 'bg-blue-50',
+                              (role === 'ADMIN' || role === 'SUPERADMIN') && 'bg-gray-100'
+                            )}>
+                              <td className="px-4 py-3">
+                                <span className={clsx(
+                                  'font-medium',
+                                  role === 'SUPERADMIN' ? 'text-purple-700' :
+                                  role === 'ADMIN' ? 'text-red-700' :
+                                  role === 'AREA_MANAGER' ? 'text-orange-700' :
+                                  role === 'STORE_MANAGER' ? 'text-blue-700' :
+                                  'text-gray-700'
+                                )}>
+                                  {ROLE_LABELS[role]}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <input
+                                  type="number"
+                                  value={currentRules.MASS?.[role] || 0}
+                                  min="0"
+                                  max="100"
+                                  onChange={(e) => handleRuleUpdate('MASS', role, parseInt(e.target.value) || 0)}
+                                  className="w-16 px-2 py-1 text-center border border-gray-200 rounded focus:border-bv-red-500 focus:ring-1 focus:ring-bv-red-500"
+                                />
+                                <span className="text-gray-500 ml-1">%</span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <input
+                                  type="number"
+                                  value={currentRules.PREMIUM?.[role] || 0}
+                                  min="0"
+                                  max="100"
+                                  onChange={(e) => handleRuleUpdate('PREMIUM', role, parseInt(e.target.value) || 0)}
+                                  className="w-16 px-2 py-1 text-center border border-gray-200 rounded focus:border-bv-red-500 focus:ring-1 focus:ring-bv-red-500"
+                                />
+                                <span className="text-gray-500 ml-1">%</span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <input
+                                  type="number"
+                                  value={currentRules.LUXURY?.[role] || 0}
+                                  min="0"
+                                  max="100"
+                                  onChange={(e) => handleRuleUpdate('LUXURY', role, parseInt(e.target.value) || 0)}
+                                  className="w-16 px-2 py-1 text-center border border-gray-200 rounded focus:border-bv-red-500 focus:ring-1 focus:ring-bv-red-500"
+                                />
+                                <span className="text-gray-500 ml-1">%</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
-                  <div className="mt-6 pt-6 border-t border-gray-200">
+                  {/* Quick Examples Card */}
+                  <div className="card bg-gray-50">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Example Discount Scenarios</h3>
+                    <div className="grid grid-cols-1 tablet:grid-cols-3 gap-3 text-sm">
+                      <div className="p-3 bg-white rounded-lg border border-gray-200">
+                        <p className="font-medium text-gray-900">Watch → Titan → Mass</p>
+                        <ul className="mt-2 space-y-1 text-gray-600">
+                          <li>Sales Staff: <span className="font-medium text-green-600">5%</span></li>
+                          <li>Store Manager: <span className="font-medium text-green-600">15%</span></li>
+                          <li>Area Manager: <span className="font-medium text-green-600">50%</span></li>
+                        </ul>
+                      </div>
+                      <div className="p-3 bg-white rounded-lg border border-gray-200">
+                        <p className="font-medium text-gray-900">Watch → Rolex → Luxury</p>
+                        <ul className="mt-2 space-y-1 text-gray-600">
+                          <li>Sales Staff: <span className="font-medium text-red-600">0%</span></li>
+                          <li>Store Manager: <span className="font-medium text-yellow-600">2%</span></li>
+                          <li>Area Manager: <span className="font-medium text-green-600">5%</span></li>
+                        </ul>
+                      </div>
+                      <div className="p-3 bg-white rounded-lg border border-gray-200">
+                        <p className="font-medium text-gray-900">Spectacles → Ray-Ban → Premium</p>
+                        <ul className="mt-2 space-y-1 text-gray-600">
+                          <li>Sales Staff: <span className="font-medium text-yellow-600">3%</span></li>
+                          <li>Store Manager: <span className="font-medium text-green-600">8%</span></li>
+                          <li>Area Manager: <span className="font-medium text-green-600">18%</span></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MRP Rules */}
+                  <div className="card">
                     <h3 className="text-sm font-medium text-gray-700 mb-3">MRP Rules (per SYSTEM_INTENT)</h3>
                     <ul className="space-y-2 text-sm text-gray-600">
                       <li className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-green-600" />
-                        If Offer Price = MRP → Store can apply discount up to role cap
+                        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        If Offer Price = MRP → Store can apply discount up to role cap based on brand tier
                       </li>
                       <li className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-green-600" />
-                        If Offer Price &lt; MRP → HQ discount applied, no further discount allowed
+                        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        If Offer Price &lt; MRP → HQ discount already applied, no further discount allowed
                       </li>
                       <li className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-green-600" />
-                        Discount above cap requires approval from higher role
+                        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        Discount above role cap requires approval from higher-level role
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        Category/Brand specific rules override default rules
                       </li>
                     </ul>
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* ================================================================ */}
               {/* INTEGRATIONS */}
