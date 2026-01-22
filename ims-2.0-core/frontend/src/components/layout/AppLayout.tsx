@@ -96,7 +96,7 @@ const navigationItems: NavItem[] = [
     label: 'Settings',
     path: '/settings',
     icon: Settings,
-    allowedRoles: ['SUPERADMIN', 'ADMIN'],
+    allowedRoles: ['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'CATALOG_MANAGER', 'AREA_MANAGER'],
   },
 ];
 
