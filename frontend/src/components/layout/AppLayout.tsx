@@ -273,7 +273,7 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-bv-red-100 rounded-full flex items-center justify-center">
               <span className="text-sm font-medium text-bv-red-600">
-                {user?.name?.charAt(0).toUpperCase()}
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </span>
             </div>
           </div>
