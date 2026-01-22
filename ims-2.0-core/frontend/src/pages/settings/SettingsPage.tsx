@@ -169,6 +169,32 @@ const AVAILABLE_ROLES = [
   'WORKSHOP_STAFF',
 ];
 
+// Role hierarchy - higher index = higher privilege
+const ROLE_HIERARCHY: Record<string, number> = {
+  'SUPERADMIN': 10,
+  'ADMIN': 9,
+  'AREA_MANAGER': 7,
+  'STORE_MANAGER': 6,
+  'ACCOUNTANT': 5,
+  'CATALOG_MANAGER': 5,
+  'OPTOMETRIST': 4,
+  'SALES_CASHIER': 3,
+  'SALES_STAFF': 2,
+  'WORKSHOP_STAFF': 2,
+};
+
+// Which roles each user type can assign
+const ASSIGNABLE_ROLES: Record<string, string[]> = {
+  'SUPERADMIN': AVAILABLE_ROLES, // Can assign all roles
+  'ADMIN': AVAILABLE_ROLES.filter(r => r !== 'SUPERADMIN'), // All except SUPERADMIN
+  'STORE_MANAGER': ['OPTOMETRIST', 'SALES_CASHIER', 'SALES_STAFF', 'WORKSHOP_STAFF'], // Store-level only
+};
+
+// Get the highest role level from a list of roles
+const getHighestRoleLevel = (roles: string[]): number => {
+  return Math.max(...roles.map(r => ROLE_HIERARCHY[r] || 0));
+};
+
 // Category definitions
 const CATEGORY_DEFINITIONS: Category[] = [
   { code: 'FR', name: 'Frame', shortName: 'Spectacles', hsnCode: '900311', gstRate: 18, attributes: ['brandName', 'subbrand', 'modelNo', 'colourCode', 'lensSize', 'bridgeWidth', 'templeLength'], isActive: true },
@@ -703,10 +729,47 @@ export function SettingsPage() {
               {/* ================================================================ */}
               {/* USER MANAGEMENT */}
               {/* ================================================================ */}
-              {activeTab === 'users' && (
+              {activeTab === 'users' && (() => {
+                // Get current user's role level
+                const currentUserRoleLevel = ROLE_HIERARCHY[user?.activeRole || ''] || 0;
+
+                // Filter users based on current user's role
+                const filteredUsers = users.filter(u => {
+                  // SUPERADMIN sees all users
+                  if (user?.activeRole === 'SUPERADMIN') return true;
+
+                  // ADMIN sees all except SUPERADMIN
+                  if (user?.activeRole === 'ADMIN') {
+                    return !u.roles.includes('SUPERADMIN');
+                  }
+
+                  // STORE_MANAGER sees users in their stores only (and lower roles)
+                  if (user?.activeRole === 'STORE_MANAGER') {
+                    const userStores = user?.storeIds || [];
+                    const hasCommonStore = u.accessibleStores?.some(s => userStores.includes(s));
+                    const userRoleLevel = getHighestRoleLevel(u.roles);
+                    return hasCommonStore && userRoleLevel < currentUserRoleLevel;
+                  }
+
+                  return false;
+                });
+
+                // Check if current user can manage a specific user
+                const canManageUser = (targetUser: User) => {
+                  const targetRoleLevel = getHighestRoleLevel(targetUser.roles);
+                  // Can only manage users with lower role level
+                  return currentUserRoleLevel > targetRoleLevel;
+                };
+
+                return (
                 <div className="card">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
+                      {user?.activeRole === 'STORE_MANAGER' && (
+                        <p className="text-xs text-gray-500 mt-1">Showing users from your managed stores</p>
+                      )}
+                    </div>
                     <button
                       onClick={() => setShowAddUserModal(true)}
                       className="btn-primary flex items-center gap-2"
@@ -717,7 +780,9 @@ export function SettingsPage() {
                   </div>
 
                   <p className="text-sm text-gray-500 mb-4">
-                    Create users and assign roles. Users can have multiple roles and access to multiple stores.
+                    {user?.activeRole === 'STORE_MANAGER'
+                      ? 'Create and manage store staff. You can assign: Optometrist, Sales Cashier, Sales Staff, Workshop Staff roles.'
+                      : 'Create users and assign roles. Users can have multiple roles and access to multiple stores.'}
                   </p>
 
                   <div className="overflow-x-auto">
@@ -733,14 +798,20 @@ export function SettingsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {users.length === 0 ? (
+                        {filteredUsers.length === 0 ? (
                           <tr>
                             <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
-                              No users found. Click "Add User" to create one.
+                              {user?.activeRole === 'STORE_MANAGER'
+                                ? 'No staff members found. Click "Add User" to create store staff.'
+                                : 'No users found. Click "Add User" to create one.'}
                             </td>
                           </tr>
                         ) : (
-                          users.map(u => (
+                          filteredUsers.map(u => {
+                            const canEdit = canManageUser(u);
+                            const canDelete = canManageUser(u) && u.id !== user?.id;
+
+                            return (
                             <tr key={u.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3">
                                 <p className="font-medium text-gray-900">{u.fullName}</p>
@@ -749,7 +820,14 @@ export function SettingsPage() {
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-1">
                                   {u.roles.map(role => (
-                                    <span key={role} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                    <span key={role} className={clsx(
+                                      'text-xs px-2 py-0.5 rounded',
+                                      role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-700' :
+                                      role === 'ADMIN' ? 'bg-red-100 text-red-700' :
+                                      role === 'AREA_MANAGER' ? 'bg-orange-100 text-orange-700' :
+                                      role === 'STORE_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    )}>
                                       {role.replace('_', ' ')}
                                     </span>
                                   ))}
@@ -770,27 +848,39 @@ export function SettingsPage() {
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
-                                  <button
-                                    onClick={() => {
-                                      setEditingUser(u);
-                                      setShowAddUserModal(true);
-                                    }}
-                                    className="text-gray-400 hover:text-bv-red-600"
-                                    title="Edit user"
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteUser(u.id)}
-                                    className="text-gray-400 hover:text-red-600"
-                                    title="Delete user"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  {canEdit ? (
+                                    <button
+                                      onClick={() => {
+                                        setEditingUser(u);
+                                        setShowAddUserModal(true);
+                                      }}
+                                      className="text-gray-400 hover:text-bv-red-600"
+                                      title="Edit user"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-200" title="Cannot edit higher-level users">
+                                      <Edit2 className="w-4 h-4" />
+                                    </span>
+                                  )}
+                                  {canDelete ? (
+                                    <button
+                                      onClick={() => handleDeleteUser(u.id)}
+                                      className="text-gray-400 hover:text-red-600"
+                                      title="Delete user"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-200" title="Cannot delete this user">
+                                      <Trash2 className="w-4 h-4" />
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                             </tr>
-                          ))
+                          );})
                         )}
                       </tbody>
                     </table>
@@ -798,9 +888,11 @@ export function SettingsPage() {
 
                   {/* Available Roles Reference */}
                   <div className="mt-6 pt-6 border-t border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">Available Roles</h3>
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">
+                      {user?.activeRole === 'STORE_MANAGER' ? 'Assignable Roles' : 'Available Roles'}
+                    </h3>
                     <div className="flex flex-wrap gap-2">
-                      {AVAILABLE_ROLES.map(role => (
+                      {(ASSIGNABLE_ROLES[user?.activeRole || ''] || []).map(role => (
                         <span key={role} className="text-xs bg-gray-100 px-3 py-1 rounded">
                           {role.replace('_', ' ')}
                         </span>
@@ -808,7 +900,8 @@ export function SettingsPage() {
                     </div>
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* ================================================================ */}
               {/* CATEGORY MASTER */}
@@ -1510,6 +1603,8 @@ export function SettingsPage() {
             setEditingUser(null);
           }}
           onSave={handleSaveUser}
+          currentUserRole={user?.activeRole || ''}
+          currentUserStores={user?.storeIds || []}
         />
       )}
 
@@ -1755,11 +1850,15 @@ function UserModal({
   stores,
   onClose,
   onSave,
+  currentUserRole,
+  currentUserStores,
 }: {
   user: User | null;
   stores: Store[];
   onClose: () => void;
   onSave: (data: Partial<User>, password?: string) => void;
+  currentUserRole: string;
+  currentUserStores: string[];
 }) {
   const [formData, setFormData] = useState<Partial<User>>(
     user || {
@@ -1774,6 +1873,15 @@ function UserModal({
     }
   );
   const [password, setPassword] = useState('');
+
+  // Get allowed roles based on current user's role
+  const allowedRoles = ASSIGNABLE_ROLES[currentUserRole] || [];
+
+  // Get allowed stores based on current user's role
+  // SUPERADMIN/ADMIN can assign any store, STORE_MANAGER only their own stores
+  const allowedStores = currentUserRole === 'STORE_MANAGER'
+    ? stores.filter(s => currentUserStores.includes(s.id))
+    : stores;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1844,50 +1952,64 @@ function UserModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Roles *</label>
-            <div className="grid grid-cols-2 gap-2">
-              {AVAILABLE_ROLES.map(role => (
-                <label key={role} className="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
-                  <input
-                    type="checkbox"
-                    checked={formData.roles?.includes(role) || false}
-                    onChange={e => {
-                      const current = formData.roles || [];
-                      if (e.target.checked) {
-                        setFormData(prev => ({ ...prev, roles: [...current, role] }));
-                      } else {
-                        setFormData(prev => ({ ...prev, roles: current.filter(r => r !== role) }));
-                      }
-                    }}
-                    className="rounded border-gray-300 text-bv-red-600 focus:ring-bv-red-500"
-                  />
-                  <span className="text-sm">{role.replace('_', ' ')}</span>
-                </label>
-              ))}
-            </div>
+            {allowedRoles.length === 0 ? (
+              <p className="text-sm text-gray-500">You don't have permission to assign roles.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {allowedRoles.map(role => (
+                  <label key={role} className="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={formData.roles?.includes(role) || false}
+                      onChange={e => {
+                        const current = formData.roles || [];
+                        if (e.target.checked) {
+                          setFormData(prev => ({ ...prev, roles: [...current, role] }));
+                        } else {
+                          setFormData(prev => ({ ...prev, roles: current.filter(r => r !== role) }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-bv-red-600 focus:ring-bv-red-500"
+                    />
+                    <span className="text-sm">{role.replace('_', ' ')}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {currentUserRole === 'STORE_MANAGER' && (
+              <p className="text-xs text-gray-500 mt-2">As Store Manager, you can only assign store-level roles.</p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Accessible Stores</label>
-            <div className="grid grid-cols-2 gap-2">
-              {stores.map(store => (
-                <label key={store.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
-                  <input
-                    type="checkbox"
-                    checked={formData.accessibleStores?.includes(store.id) || false}
-                    onChange={e => {
-                      const current = formData.accessibleStores || [];
-                      if (e.target.checked) {
-                        setFormData(prev => ({ ...prev, accessibleStores: [...current, store.id] }));
-                      } else {
-                        setFormData(prev => ({ ...prev, accessibleStores: current.filter(s => s !== store.id) }));
-                      }
-                    }}
-                    className="rounded border-gray-300 text-bv-red-600 focus:ring-bv-red-500"
-                  />
-                  <span className="text-sm">{store.storeName}</span>
-                </label>
-              ))}
-            </div>
+            {allowedStores.length === 0 ? (
+              <p className="text-sm text-gray-500">No stores available.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {allowedStores.map(store => (
+                  <label key={store.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
+                    <input
+                      type="checkbox"
+                      checked={formData.accessibleStores?.includes(store.id) || false}
+                      onChange={e => {
+                        const current = formData.accessibleStores || [];
+                        if (e.target.checked) {
+                          setFormData(prev => ({ ...prev, accessibleStores: [...current, store.id] }));
+                        } else {
+                          setFormData(prev => ({ ...prev, accessibleStores: current.filter(s => s !== store.id) }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-bv-red-600 focus:ring-bv-red-500"
+                    />
+                    <span className="text-sm">{store.storeName}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {currentUserRole === 'STORE_MANAGER' && (
+              <p className="text-xs text-gray-500 mt-2">You can only assign users to your managed stores.</p>
+            )}
           </div>
 
           <div>
