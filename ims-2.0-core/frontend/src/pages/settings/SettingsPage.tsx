@@ -1321,7 +1321,10 @@ export function SettingsPage() {
                       <h2 className="text-lg font-semibold text-gray-900">Discount Rules</h2>
                       <p className="text-sm text-gray-500">Maximum discount by role and brand tier</p>
                     </div>
-                    <button className="btn-outline flex items-center gap-2">
+                    <button
+                      onClick={() => toast.info('Save changes to update discount rules')}
+                      className="btn-outline flex items-center gap-2"
+                    >
                       <Edit2 className="w-4 h-4" />
                       Edit Rules
                     </button>

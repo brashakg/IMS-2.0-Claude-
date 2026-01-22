@@ -22,6 +22,7 @@ import {
 import type { ProductCategory } from '../../types';
 import { inventoryApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
 // Category configuration
@@ -74,6 +75,7 @@ type ViewTab = 'catalog' | 'low-stock' | 'movements';
 
 export function InventoryPage() {
   const { user, hasRole } = useAuth();
+  const toast = useToast();
 
   // Data state
   const [inventory, setInventory] = useState<StockItem[]>([]);
@@ -86,7 +88,6 @@ export function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | null>(null);
   const [activeTab, setActiveTab] = useState<ViewTab>('catalog');
-  const [showTransferModal, setShowTransferModal] = useState(false);
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -96,9 +97,6 @@ export function InventoryPage() {
   const canTransfer = hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER']);
   const canAddProduct = hasRole(['SUPERADMIN', 'ADMIN', 'CATALOG_MANAGER']);
   const canExport = hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ACCOUNTANT']);
-
-  // Modal placeholder
-  void showTransferModal;
 
   // Load data on mount
   useEffect(() => {
@@ -198,14 +196,17 @@ export function InventoryPage() {
             Refresh
           </button>
           {canExport && (
-            <button className="btn-outline flex items-center gap-2">
+            <button
+              onClick={() => toast.info('Export feature coming soon')}
+              className="btn-outline flex items-center gap-2"
+            >
               <Download className="w-4 h-4" />
               Export
             </button>
           )}
           {canTransfer && (
             <button
-              onClick={() => setShowTransferModal(true)}
+              onClick={() => toast.info('Stock transfer feature coming soon')}
               className="btn-outline flex items-center gap-2"
             >
               <ArrowRightLeft className="w-4 h-4" />
@@ -213,7 +214,10 @@ export function InventoryPage() {
             </button>
           )}
           {canAddProduct && (
-            <button className="btn-primary flex items-center gap-2">
+            <button
+              onClick={() => toast.info('Add product via Settings → Products Master')}
+              className="btn-primary flex items-center gap-2"
+            >
               <Plus className="w-4 h-4" />
               Add Product
             </button>
@@ -415,7 +419,10 @@ export function InventoryPage() {
                           <span className={status.class}>{status.label}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors">
+                          <button
+                            onClick={() => toast.info(`View details for ${item.name}`)}
+                            className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors"
+                          >
                             <Eye className="w-4 h-4" />
                           </button>
                         </td>

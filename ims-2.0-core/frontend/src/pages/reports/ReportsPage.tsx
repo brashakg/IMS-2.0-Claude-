@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { reportsApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
 type ReportType = 'sales' | 'inventory' | 'customers' | 'gst';
@@ -96,6 +97,7 @@ const REPORT_CARDS = [
 
 export function ReportsPage() {
   const { user, hasRole } = useAuth();
+  const toast = useToast();
 
   // Data state
   const [salesSummary, setSalesSummary] = useState<SalesSummary>({
@@ -345,7 +347,10 @@ export function ReportsPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Sales Trend</h3>
               {canExport && (
-                <button className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1">
+                <button
+                  onClick={() => toast.info('Export sales trend feature coming soon')}
+                  className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
+                >
                   <Download className="w-4 h-4" />
                   Export
                 </button>
@@ -436,15 +441,24 @@ export function ReportsPage() {
                   <h4 className="font-medium text-gray-900">{report.title}</h4>
                   <p className="text-sm text-gray-500 mt-1">{report.description}</p>
                   <div className="flex items-center gap-2 mt-3">
-                    <button className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`View ${report.title}`)}
+                      className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
+                    >
                       <Eye className="w-4 h-4" />
                       View
                     </button>
-                    <button className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`Export ${report.title}`)}
+                      className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
+                    >
                       <Download className="w-4 h-4" />
                       Export
                     </button>
-                    <button className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`Print ${report.title}`)}
+                      className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
+                    >
                       <Printer className="w-4 h-4" />
                       Print
                     </button>
@@ -469,10 +483,16 @@ export function ReportsPage() {
                 GST data for the period has been compiled. Download the reports for GSTR-1 and GSTR-3B filing.
               </p>
               <div className="flex gap-3 mt-3">
-                <button className="btn-primary text-sm">
+                <button
+                  onClick={() => toast.info('GSTR-1 download feature coming soon')}
+                  className="btn-primary text-sm"
+                >
                   Download GSTR-1
                 </button>
-                <button className="btn-outline text-sm">
+                <button
+                  onClick={() => toast.info('GSTR-3B download feature coming soon')}
+                  className="btn-outline text-sm"
+                >
                   Download GSTR-3B
                 </button>
               </div>

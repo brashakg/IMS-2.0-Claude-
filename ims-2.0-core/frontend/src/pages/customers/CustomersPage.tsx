@@ -44,8 +44,6 @@ export function CustomersPage() {
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
-  const [showNewPatientModal, setShowNewPatientModal] = useState(false);
   const [filterType, setFilterType] = useState<'ALL' | 'B2C' | 'B2B'>('ALL');
 
   // Loading state
@@ -53,10 +51,6 @@ export function CustomersPage() {
   const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Modal state placeholders
-  void showNewCustomerModal;
-  void showNewPatientModal;
 
   // Load customers on mount
   useEffect(() => {
@@ -188,7 +182,7 @@ export function CustomersPage() {
           </div>
           {canAddCustomer && (
             <button
-              onClick={() => setShowNewCustomerModal(true)}
+              onClick={() => toast.info('Add customer modal coming soon')}
               className="btn-primary flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -254,7 +248,7 @@ export function CustomersPage() {
               <p>{searchQuery ? 'No customers found matching your search' : 'No customers yet'}</p>
               {canAddCustomer && !searchQuery && (
                 <button
-                  onClick={() => setShowNewCustomerModal(true)}
+                  onClick={() => toast.info('Add customer modal coming soon')}
                   className="mt-4 text-bv-red-600 hover:text-bv-red-700"
                 >
                   Add your first customer
@@ -332,7 +326,10 @@ export function CustomersPage() {
           <p className="text-gray-500">{selectedCustomer?.phone}</p>
         </div>
         {canEditCustomer && (
-          <button className="btn-outline flex items-center gap-2">
+          <button
+            onClick={() => toast.info(`Edit customer: ${selectedCustomer?.name}`)}
+            className="btn-outline flex items-center gap-2"
+          >
             <Edit2 className="w-4 h-4" />
             Edit
           </button>
@@ -381,7 +378,7 @@ export function CustomersPage() {
             <h2 className="font-semibold text-gray-900">Patients</h2>
             {canAddCustomer && (
               <button
-                onClick={() => setShowNewPatientModal(true)}
+                onClick={() => toast.info('Add patient modal coming soon')}
                 className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" />

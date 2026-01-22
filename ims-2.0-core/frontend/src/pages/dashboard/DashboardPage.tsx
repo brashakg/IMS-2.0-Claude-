@@ -340,7 +340,9 @@ export function DashboardPage() {
           {hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST', 'SALES_CASHIER', 'SALES_STAFF']) && (
             <QuickAction label="New Sale" icon={ShoppingCart} onClick={() => navigate('/pos')} />
           )}
-          <QuickAction label="Add Customer" icon={Users} onClick={() => navigate('/customers')} />
+          {hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'SALES_CASHIER', 'SALES_STAFF']) && (
+            <QuickAction label="Add Customer" icon={Users} onClick={() => navigate('/customers')} />
+          )}
           {hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'CATALOG_MANAGER']) && (
             <QuickAction label="Stock In" icon={Package} onClick={() => navigate('/inventory')} />
           )}

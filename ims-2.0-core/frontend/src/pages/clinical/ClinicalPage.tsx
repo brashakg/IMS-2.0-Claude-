@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { clinicalApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
 // Types
@@ -53,6 +54,7 @@ const STATUS_CONFIG: Record<QueueStatus, { label: string; class: string }> = {
 
 export function ClinicalPage() {
   const { user, hasRole } = useAuth();
+  const toast = useToast();
 
   // Data state
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -60,7 +62,6 @@ export function ClinicalPage() {
 
   // UI state
   const [activeTab, setActiveTab] = useState<'queue' | 'completed'>('queue');
-  const [showNewTestModal, setShowNewTestModal] = useState(false);
 
   // Loading state
   const [isLoading, setIsLoading] = useState(true);
@@ -70,9 +71,6 @@ export function ClinicalPage() {
   // Role-based permissions
   const canStartTest = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST']);
   const canAddPatient = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'OPTOMETRIST', 'SALES_CASHIER', 'SALES_STAFF']);
-
-  // Modal placeholder
-  void showNewTestModal;
 
   // Load data on mount
   useEffect(() => {
@@ -156,7 +154,7 @@ export function ClinicalPage() {
           </button>
           {canAddPatient && (
             <button
-              onClick={() => setShowNewTestModal(true)}
+              onClick={() => toast.info('Add patient to queue feature coming soon')}
               className="btn-primary flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -327,7 +325,10 @@ export function ClinicalPage() {
                         </button>
                       )}
                       {item.status === 'IN_PROGRESS' && canStartTest && (
-                        <button className="btn-primary flex items-center gap-2">
+                        <button
+                          onClick={() => toast.info(`Continue eye test for ${item.patientName}`)}
+                          className="btn-primary flex items-center gap-2"
+                        >
                           <Eye className="w-4 h-4" />
                           Continue
                         </button>
@@ -376,7 +377,10 @@ export function ClinicalPage() {
                         <p className="text-gray-500">R: {formatPower(test.rightEye.sphere)} / {formatPower(test.rightEye.cylinder)}</p>
                         <p className="text-gray-500">L: {formatPower(test.leftEye.sphere)} / {formatPower(test.leftEye.cylinder)}</p>
                       </div>
-                      <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors">
+                      <button
+                        onClick={() => toast.info(`View prescription for ${test.patientName}`)}
+                        className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors"
+                      >
                         <FileText className="w-5 h-5" />
                       </button>
                     </div>

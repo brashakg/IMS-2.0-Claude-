@@ -23,6 +23,7 @@ import {
 import type { OrderStatus, PaymentStatus, Order } from '../../types';
 import { orderApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
 // Status configurations
@@ -43,6 +44,7 @@ const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; color: strin
 
 export function OrdersPage() {
   const { user, hasRole } = useAuth();
+  const toast = useToast();
 
   // Data state
   const [orders, setOrders] = useState<Order[]>([]);
@@ -288,7 +290,7 @@ export function OrdersPage() {
                       View
                     </button>
                     <button
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); toast.info(`Printing invoice for ${order.orderNumber}`); }}
                       className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
                     >
                       <Printer className="w-3 h-3" />
@@ -296,7 +298,7 @@ export function OrdersPage() {
                     </button>
                     {order.paymentStatus !== 'PAID' && (
                       <button
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); toast.info('Payment collection modal coming soon'); }}
                         className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
                       >
                         <CreditCard className="w-3 h-3" />
@@ -386,12 +388,18 @@ export function OrdersPage() {
                 </div>
 
                 <div className="flex gap-2 pt-4">
-                  <button className="btn-primary flex-1 flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => toast.info(`Printing invoice for ${selectedOrder.orderNumber}`)}
+                    className="btn-primary flex-1 flex items-center justify-center gap-2"
+                  >
                     <Printer className="w-4 h-4" />
                     Print Invoice
                   </button>
                   {selectedOrder.balanceDue > 0 && (
-                    <button className="btn-outline flex-1 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => toast.info('Payment collection modal coming soon')}
+                      className="btn-outline flex-1 flex items-center justify-center gap-2"
+                    >
                       <CreditCard className="w-4 h-4" />
                       Collect Payment
                     </button>

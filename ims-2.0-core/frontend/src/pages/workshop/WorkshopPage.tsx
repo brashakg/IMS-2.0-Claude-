@@ -21,6 +21,7 @@ import {
 import type { JobStatus, JobPriority } from '../../types';
 import { workshopApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
 
 // Job type
@@ -65,6 +66,7 @@ const PRIORITY_CONFIG: Record<JobPriority, { label: string; class: string; icon:
 
 export function WorkshopPage() {
   const { user, hasRole } = useAuth();
+  const toast = useToast();
 
   // Data state
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -356,7 +358,10 @@ export function WorkshopPage() {
                         Assigned: {job.assignedTo}
                       </p>
                     )}
-                    <button className="btn-outline text-sm flex items-center gap-1">
+                    <button
+                      onClick={() => toast.info(`View job details: ${job.jobNumber}`)}
+                      className="btn-outline text-sm flex items-center gap-1"
+                    >
                       <Eye className="w-4 h-4" />
                       View
                     </button>
