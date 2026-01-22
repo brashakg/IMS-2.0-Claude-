@@ -116,7 +116,7 @@ async def root():
     }
 
 
-# Include routers
+# Include routers with /api/v1 prefix
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(stores_router, prefix="/api/v1/stores", tags=["Stores"])
@@ -132,6 +132,23 @@ app.include_router(hr_router, prefix="/api/v1/hr", tags=["HR"])
 app.include_router(workshop_router, prefix="/api/v1/workshop", tags=["Workshop"])
 app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"])
+
+# Also include routers with /api prefix (for external access via ingress)
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(users_router, prefix="/api/users", tags=["Users"])
+app.include_router(stores_router, prefix="/api/stores", tags=["Stores"])
+app.include_router(products_router, prefix="/api/products", tags=["Products"])
+app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
+app.include_router(customers_router, prefix="/api/customers", tags=["Customers"])
+app.include_router(orders_router, prefix="/api/orders", tags=["Orders"])
+app.include_router(prescriptions_router, prefix="/api/prescriptions", tags=["Prescriptions"])
+app.include_router(vendors_router, prefix="/api/vendors", tags=["Vendors"])
+app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks"])
+app.include_router(expenses_router, prefix="/api/expenses", tags=["Expenses"])
+app.include_router(hr_router, prefix="/api/hr", tags=["HR"])
+app.include_router(workshop_router, prefix="/api/workshop", tags=["Workshop"])
+app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
+app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
 
 
 if __name__ == "__main__":
