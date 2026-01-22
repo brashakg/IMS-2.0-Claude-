@@ -1,8 +1,9 @@
 // ============================================================================
 // IMS 2.0 - Customers Page
 // ============================================================================
+// NO MOCK DATA - All data from API
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -18,111 +19,105 @@ import {
   Calendar,
   Edit2,
   Building2,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import type { Customer, Patient, Prescription } from '../../types';
+import { customerApi, prescriptionApi, orderApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import clsx from 'clsx';
-
-// Mock customers data
-const mockCustomers: Customer[] = [
-  {
-    id: 'cust-001',
-    name: 'Rajesh Kumar',
-    phone: '9876543210',
-    email: 'rajesh.kumar@email.com',
-    customerType: 'B2C',
-    address: '123 Park Street',
-    city: 'Kolkata',
-    state: 'West Bengal',
-    pincode: '700016',
-    patients: [
-      { id: 'pat-001', customerId: 'cust-001', name: 'Rajesh Kumar', relation: 'Self', dateOfBirth: '1985-06-15' },
-      { id: 'pat-002', customerId: 'cust-001', name: 'Priya Kumar', relation: 'Wife', dateOfBirth: '1988-03-22' },
-      { id: 'pat-003', customerId: 'cust-001', name: 'Aryan Kumar', relation: 'Son', dateOfBirth: '2012-09-10' },
-    ],
-    createdAt: '2024-01-15T10:30:00Z',
-  },
-  {
-    id: 'cust-002',
-    name: 'Sunita Sharma',
-    phone: '9988776655',
-    email: 'sunita.sharma@email.com',
-    customerType: 'B2C',
-    address: '45 Salt Lake, Sector V',
-    city: 'Kolkata',
-    state: 'West Bengal',
-    pincode: '700091',
-    patients: [
-      { id: 'pat-004', customerId: 'cust-002', name: 'Sunita Sharma', relation: 'Self', dateOfBirth: '1975-11-20' },
-    ],
-    createdAt: '2024-02-20T14:15:00Z',
-  },
-  {
-    id: 'cust-003',
-    name: 'ABC Enterprises',
-    phone: '9123456789',
-    email: 'purchase@abcent.com',
-    customerType: 'B2B',
-    gstNumber: '19ABCDE1234F1Z5',
-    address: '100 Industrial Area',
-    city: 'Howrah',
-    state: 'West Bengal',
-    pincode: '711101',
-    patients: [],
-    createdAt: '2024-03-10T09:00:00Z',
-  },
-];
-
-// Mock prescriptions
-const mockPrescriptions: Record<string, Prescription[]> = {
-  'pat-001': [
-    {
-      id: 'rx-001',
-      patientId: 'pat-001',
-      customerId: 'cust-001',
-      storeId: 'BV-KOL-001',
-      optometristName: 'Dr. Sharma',
-      testDate: '2025-01-15',
-      rightEye: { sphere: -2.25, cylinder: -0.75, axis: 180, add: null, pd: 32, va: '6/6' },
-      leftEye: { sphere: -2.50, cylinder: -0.50, axis: 175, add: null, pd: 31, va: '6/6' },
-      recommendation: 'Anti-fatigue lenses recommended',
-      status: 'COMPLETED',
-      createdAt: '2025-01-15T10:30:00Z',
-      updatedAt: '2025-01-15T11:00:00Z',
-    },
-  ],
-  'pat-002': [
-    {
-      id: 'rx-002',
-      patientId: 'pat-002',
-      customerId: 'cust-001',
-      storeId: 'BV-KOL-001',
-      optometristName: 'Dr. Sharma',
-      testDate: '2025-01-15',
-      rightEye: { sphere: -1.00, cylinder: -0.25, axis: 90, add: null, pd: 30, va: '6/6' },
-      leftEye: { sphere: -1.25, cylinder: null, axis: null, add: null, pd: 30, va: '6/6' },
-      status: 'COMPLETED',
-      createdAt: '2025-01-15T11:30:00Z',
-      updatedAt: '2025-01-15T12:00:00Z',
-    },
-  ],
-};
 
 type ViewMode = 'list' | 'detail';
 
 export function CustomersPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const { user, hasRole } = useAuth();
+  const toast = useToast();
+
+  // Data state
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [purchaseHistory, setPurchaseHistory] = useState<Array<{ id: string; orderNumber: string; date: string; total: number; items: number }>>([]);
+
+  // UI state
+  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [showNewPatientModal, setShowNewPatientModal] = useState(false);
-  // Modals will be implemented later
-  void showNewCustomerModal;
-  void showNewPatientModal;
   const [filterType, setFilterType] = useState<'ALL' | 'B2C' | 'B2B'>('ALL');
 
-  // Filter customers
-  const filteredCustomers = mockCustomers.filter(customer => {
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Modal state placeholders
+  void showNewCustomerModal;
+  void showNewPatientModal;
+
+  // Load customers on mount
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const loadCustomers = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await customerApi.getCustomers({
+        storeId: user?.activeStoreId,
+        limit: 100,
+      });
+      setCustomers(response.customers || response || []);
+    } catch (err) {
+      console.error('Failed to load customers:', err);
+      setError('Failed to load customers. Please try again.');
+      setCustomers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load prescriptions when patient is selected
+  const loadPrescriptions = useCallback(async (patientId: string) => {
+    setIsLoadingPrescriptions(true);
+    try {
+      const response = await prescriptionApi.getPrescriptions(patientId);
+      setPrescriptions(response.prescriptions || response || []);
+    } catch (err) {
+      console.error('Failed to load prescriptions:', err);
+      setPrescriptions([]);
+    } finally {
+      setIsLoadingPrescriptions(false);
+    }
+  }, []);
+
+  // Load purchase history when customer is selected
+  const loadPurchaseHistory = useCallback(async (customerId: string) => {
+    setIsLoadingHistory(true);
+    try {
+      const response = await orderApi.getOrders({ customerId, limit: 10 });
+      const orders = response.orders || response || [];
+      setPurchaseHistory(orders.map((order: { id: string; orderNumber: string; createdAt: string; grandTotal: number; items: unknown[] }) => ({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        date: order.createdAt,
+        total: order.grandTotal,
+        items: order.items?.length || 0,
+      })));
+    } catch (err) {
+      console.error('Failed to load purchase history:', err);
+      setPurchaseHistory([]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, []);
+
+  // Filter customers locally
+  const filteredCustomers = customers.filter(customer => {
     const matchesSearch = !searchQuery ||
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.phone.includes(searchQuery) ||
@@ -135,13 +130,24 @@ export function CustomersPage() {
 
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer);
-    setSelectedPatient(customer.patients[0] || null);
+    setSelectedPatient(customer.patients?.[0] || null);
     setViewMode('detail');
+    loadPurchaseHistory(customer.id);
+    if (customer.patients?.[0]) {
+      loadPrescriptions(customer.patients[0].id);
+    }
+  };
+
+  const handleSelectPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    loadPrescriptions(patient.id);
   };
 
   const handleBack = () => {
     setSelectedCustomer(null);
     setSelectedPatient(null);
+    setPrescriptions([]);
+    setPurchaseHistory([]);
     setViewMode('list');
   };
 
@@ -153,10 +159,22 @@ export function CustomersPage() {
     });
   };
 
-  const formatPower = (value: number | null) => {
-    if (value === null) return '-';
+  const formatPower = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return '-';
     return value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
   };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Check if user can add customers (role-based)
+  const canAddCustomer = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER', 'SALES_CASHIER', 'SALES_STAFF']);
+  const canEditCustomer = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER']);
 
   // Customer List View
   if (viewMode === 'list') {
@@ -168,13 +186,15 @@ export function CustomersPage() {
             <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
             <p className="text-gray-500">Manage customers and patients</p>
           </div>
-          <button
-            onClick={() => setShowNewCustomerModal(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Customer
-          </button>
+          {canAddCustomer && (
+            <button
+              onClick={() => setShowNewCustomerModal(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              New Customer
+            </button>
+          )}
         </div>
 
         {/* Search and Filters */}
@@ -209,12 +229,37 @@ export function CustomersPage() {
           </div>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <div className="card bg-red-50 border-red-200">
+            <div className="flex items-center gap-3 text-red-600">
+              <AlertCircle className="w-5 h-5" />
+              <p>{error}</p>
+              <button onClick={loadCustomers} className="ml-auto text-sm underline">
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Customer List */}
         <div className="card">
-          {filteredCustomers.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+            </div>
+          ) : filteredCustomers.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>No customers found</p>
+              <p>{searchQuery ? 'No customers found matching your search' : 'No customers yet'}</p>
+              {canAddCustomer && !searchQuery && (
+                <button
+                  onClick={() => setShowNewCustomerModal(true)}
+                  className="mt-4 text-bv-red-600 hover:text-bv-red-700"
+                >
+                  Add your first customer
+                </button>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
@@ -254,7 +299,7 @@ export function CustomersPage() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-sm text-gray-500">
-                        {customer.patients.length} patient{customer.patients.length !== 1 ? 's' : ''}
+                        {customer.patients?.length || 0} patient{(customer.patients?.length || 0) !== 1 ? 's' : ''}
                       </p>
                       {customer.customerType === 'B2B' && customer.gstNumber && (
                         <p className="text-xs text-gray-400">GST: {customer.gstNumber}</p>
@@ -286,10 +331,12 @@ export function CustomersPage() {
           <h1 className="text-2xl font-bold text-gray-900">{selectedCustomer?.name}</h1>
           <p className="text-gray-500">{selectedCustomer?.phone}</p>
         </div>
-        <button className="btn-outline flex items-center gap-2">
-          <Edit2 className="w-4 h-4" />
-          Edit
-        </button>
+        {canEditCustomer && (
+          <button className="btn-outline flex items-center gap-2">
+            <Edit2 className="w-4 h-4" />
+            Edit
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 laptop:grid-cols-3 gap-4">
@@ -332,19 +379,21 @@ export function CustomersPage() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Patients</h2>
-            <button
-              onClick={() => setShowNewPatientModal(true)}
-              className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
-            >
-              <Plus className="w-4 h-4" />
-              Add
-            </button>
+            {canAddCustomer && (
+              <button
+                onClick={() => setShowNewPatientModal(true)}
+                className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+            )}
           </div>
           <div className="space-y-2">
-            {selectedCustomer?.patients.map(patient => (
+            {selectedCustomer?.patients?.map(patient => (
               <button
                 key={patient.id}
-                onClick={() => setSelectedPatient(patient)}
+                onClick={() => handleSelectPatient(patient)}
                 className={clsx(
                   'w-full p-3 rounded-lg text-left transition-colors',
                   selectedPatient?.id === patient.id
@@ -359,7 +408,7 @@ export function CustomersPage() {
                 </p>
               </button>
             ))}
-            {selectedCustomer?.patients.length === 0 && (
+            {(!selectedCustomer?.patients || selectedCustomer.patients.length === 0) && (
               <p className="text-sm text-gray-500 text-center py-4">No patients added</p>
             )}
           </div>
@@ -371,65 +420,91 @@ export function CustomersPage() {
             <h2 className="font-semibold text-gray-900">
               Prescriptions {selectedPatient && `(${selectedPatient.name})`}
             </h2>
-            <button className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1">
+            <button
+              onClick={() => toast.info('Eye test feature coming soon')}
+              className="text-sm text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
+            >
               <Eye className="w-4 h-4" />
               Eye Test
             </button>
           </div>
           {selectedPatient ? (
-            <div className="space-y-3">
-              {(mockPrescriptions[selectedPatient.id] || []).map(rx => (
-                <div key={rx.id} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{formatDate(rx.testDate)}</span>
-                    <span className="text-xs text-gray-500">by {rx.optometristName}</span>
+            isLoadingPrescriptions ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-bv-red-600" />
+              </div>
+            ) : prescriptions.length > 0 ? (
+              <div className="space-y-3">
+                {prescriptions.map(rx => (
+                  <div key={rx.id} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">{formatDate(rx.testDate)}</span>
+                      <span className="text-xs text-gray-500">by {rx.optometristName || 'Unknown'}</span>
+                    </div>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-500">
+                          <th className="text-left">Eye</th>
+                          <th className="text-center">SPH</th>
+                          <th className="text-center">CYL</th>
+                          <th className="text-center">AXIS</th>
+                          <th className="text-center">PD</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="font-medium">R</td>
+                          <td className="text-center">{formatPower(rx.rightEye?.sphere)}</td>
+                          <td className="text-center">{formatPower(rx.rightEye?.cylinder)}</td>
+                          <td className="text-center">{rx.rightEye?.axis || '-'}°</td>
+                          <td className="text-center">{rx.rightEye?.pd || '-'}</td>
+                        </tr>
+                        <tr>
+                          <td className="font-medium">L</td>
+                          <td className="text-center">{formatPower(rx.leftEye?.sphere)}</td>
+                          <td className="text-center">{formatPower(rx.leftEye?.cylinder)}</td>
+                          <td className="text-center">{rx.leftEye?.axis || '-'}°</td>
+                          <td className="text-center">{rx.leftEye?.pd || '-'}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-gray-500">
-                        <th className="text-left">Eye</th>
-                        <th className="text-center">SPH</th>
-                        <th className="text-center">CYL</th>
-                        <th className="text-center">AXIS</th>
-                        <th className="text-center">PD</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="font-medium">R</td>
-                        <td className="text-center">{formatPower(rx.rightEye.sphere)}</td>
-                        <td className="text-center">{formatPower(rx.rightEye.cylinder)}</td>
-                        <td className="text-center">{rx.rightEye.axis || '-'}°</td>
-                        <td className="text-center">{rx.rightEye.pd}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-medium">L</td>
-                        <td className="text-center">{formatPower(rx.leftEye.sphere)}</td>
-                        <td className="text-center">{formatPower(rx.leftEye.cylinder)}</td>
-                        <td className="text-center">{rx.leftEye.axis || '-'}°</td>
-                        <td className="text-center">{rx.leftEye.pd}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-              {(!mockPrescriptions[selectedPatient.id] || mockPrescriptions[selectedPatient.id].length === 0) && (
-                <p className="text-sm text-gray-500 text-center py-4">No prescriptions</p>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">No prescriptions</p>
+            )
           ) : (
             <p className="text-sm text-gray-500 text-center py-4">Select a patient to view prescriptions</p>
           )}
         </div>
       </div>
 
-      {/* Purchase History would go here */}
+      {/* Purchase History */}
       <div className="card">
         <h2 className="font-semibold text-gray-900 mb-4">Purchase History</h2>
-        <div className="text-center py-8 text-gray-500">
-          <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>No purchase history available</p>
-        </div>
+        {isLoadingHistory ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-bv-red-600" />
+          </div>
+        ) : purchaseHistory.length > 0 ? (
+          <div className="divide-y divide-gray-200">
+            {purchaseHistory.map(order => (
+              <div key={order.id} className="py-3 flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900">{order.orderNumber}</p>
+                  <p className="text-sm text-gray-500">{formatDate(order.date)} • {order.items} items</p>
+                </div>
+                <p className="font-bold text-gray-900">{formatCurrency(order.total)}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <p>No purchase history available</p>
+          </div>
+        )}
       </div>
     </div>
   );

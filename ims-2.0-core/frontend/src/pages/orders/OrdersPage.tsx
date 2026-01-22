@@ -1,8 +1,9 @@
 // ============================================================================
 // IMS 2.0 - Orders Page
 // ============================================================================
+// NO MOCK DATA - All data from API
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   FileText,
@@ -11,193 +12,95 @@ import {
   XCircle,
   Truck,
   Package,
-  Calendar,
   User,
   CreditCard,
   Eye,
   Printer,
   RefreshCw,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
-import type { OrderStatus, PaymentStatus } from '../../types';
+import type { OrderStatus, PaymentStatus, Order } from '../../types';
+import { orderApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import clsx from 'clsx';
 
-// Mock orders data
-const mockOrders = [
-  {
-    id: 'ord-001',
-    orderNumber: 'BV-KOL-001-2501-0001',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-001',
-    customerName: 'Rajesh Kumar',
-    customerPhone: '9876543210',
-    patientName: 'Rajesh Kumar',
-    items: [
-      { name: 'Ray-Ban RB5154 Clubmaster', qty: 1, price: 6890 },
-      { name: 'Essilor Crizal Prevencia (Pair)', qty: 1, price: 7000 },
-    ],
-    subtotal: 13890,
-    discount: 1000,
-    tax: 2320,
-    grandTotal: 15210,
-    amountPaid: 15210,
-    balanceDue: 0,
-    orderStatus: 'DELIVERED' as OrderStatus,
-    paymentStatus: 'PAID' as PaymentStatus,
-    hasWorkshopJob: true,
-    workshopStatus: 'DELIVERED',
-    createdBy: 'Amit Sales',
-    createdAt: '2025-01-18T10:30:00Z',
-    deliveredAt: '2025-01-20T14:00:00Z',
-  },
-  {
-    id: 'ord-002',
-    orderNumber: 'BV-KOL-001-2501-0002',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-002',
-    customerName: 'Sunita Sharma',
-    customerPhone: '9988776655',
-    patientName: 'Sunita Sharma',
-    items: [
-      { name: 'Zeiss DriveSafe (Pair)', qty: 1, price: 15000 },
-      { name: 'Titan Frame Premium', qty: 1, price: 8500 },
-    ],
-    subtotal: 23500,
-    discount: 2000,
-    tax: 3870,
-    grandTotal: 25370,
-    amountPaid: 10000,
-    balanceDue: 15370,
-    orderStatus: 'READY' as OrderStatus,
-    paymentStatus: 'PARTIAL' as PaymentStatus,
-    hasWorkshopJob: true,
-    workshopStatus: 'READY',
-    createdBy: 'Priya Sales',
-    createdAt: '2025-01-19T15:45:00Z',
-  },
-  {
-    id: 'ord-003',
-    orderNumber: 'BV-KOL-001-2501-0003',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-003',
-    customerName: 'Vikram Mehta',
-    customerPhone: '9123456789',
-    items: [
-      { name: 'Apple Watch Series 9', qty: 1, price: 42900 },
-    ],
-    subtotal: 42900,
-    discount: 0,
-    tax: 7722,
-    grandTotal: 50622,
-    amountPaid: 50622,
-    balanceDue: 0,
-    orderStatus: 'DELIVERED' as OrderStatus,
-    paymentStatus: 'PAID' as PaymentStatus,
-    hasWorkshopJob: false,
-    createdBy: 'Amit Sales',
-    createdAt: '2025-01-20T11:00:00Z',
-    deliveredAt: '2025-01-20T11:30:00Z',
-  },
-  {
-    id: 'ord-004',
-    orderNumber: 'BV-KOL-001-2501-0004',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-004',
-    customerName: 'Ananya Das',
-    customerPhone: '9876512345',
-    patientName: 'Ananya Das',
-    items: [
-      { name: 'Acuvue Oasys (6 pack)', qty: 2, price: 3600 },
-    ],
-    subtotal: 3600,
-    discount: 200,
-    tax: 612,
-    grandTotal: 4012,
-    amountPaid: 4012,
-    balanceDue: 0,
-    orderStatus: 'CONFIRMED' as OrderStatus,
-    paymentStatus: 'PAID' as PaymentStatus,
-    hasWorkshopJob: false,
-    createdBy: 'Priya Sales',
-    createdAt: '2025-01-21T09:15:00Z',
-  },
-  {
-    id: 'ord-005',
-    orderNumber: 'BV-KOL-001-2501-0005',
-    storeId: 'BV-KOL-001',
-    customerId: 'cust-005',
-    customerName: 'Rahul Singh',
-    customerPhone: '9988112233',
-    patientName: 'Rahul Singh',
-    items: [
-      { name: 'Ray-Ban Meta Smart Glasses', qty: 1, price: 29990 },
-    ],
-    subtotal: 29990,
-    discount: 0,
-    tax: 5398,
-    grandTotal: 35388,
-    amountPaid: 0,
-    balanceDue: 35388,
-    orderStatus: 'IN_PROGRESS' as OrderStatus,
-    paymentStatus: 'PENDING' as PaymentStatus,
-    hasWorkshopJob: true,
-    workshopStatus: 'IN_PROGRESS',
-    createdBy: 'Amit Sales',
-    createdAt: '2025-01-21T14:30:00Z',
-  },
-];
-
-const STATUS_CONFIG: Record<OrderStatus, { label: string; icon: React.ComponentType<any>; class: string }> = {
-  DRAFT: { label: 'Draft', icon: FileText, class: 'bg-gray-100 text-gray-600' },
-  CONFIRMED: { label: 'Confirmed', icon: CheckCircle, class: 'bg-blue-100 text-blue-600' },
-  IN_PROGRESS: { label: 'In Progress', icon: RefreshCw, class: 'bg-yellow-100 text-yellow-600' },
-  READY: { label: 'Ready', icon: Package, class: 'bg-green-100 text-green-600' },
-  DELIVERED: { label: 'Delivered', icon: Truck, class: 'bg-emerald-100 text-emerald-600' },
-  CANCELLED: { label: 'Cancelled', icon: XCircle, class: 'bg-red-100 text-red-600' },
+// Status configurations
+const ORDER_STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bgColor: string; icon: typeof Clock }> = {
+  DRAFT: { label: 'Draft', color: 'text-gray-600', bgColor: 'bg-gray-100', icon: FileText },
+  CONFIRMED: { label: 'Confirmed', color: 'text-blue-600', bgColor: 'bg-blue-100', icon: CheckCircle },
+  IN_PROGRESS: { label: 'In Progress', color: 'text-yellow-600', bgColor: 'bg-yellow-100', icon: Clock },
+  READY: { label: 'Ready', color: 'text-green-600', bgColor: 'bg-green-100', icon: Package },
+  DELIVERED: { label: 'Delivered', color: 'text-emerald-600', bgColor: 'bg-emerald-100', icon: Truck },
+  CANCELLED: { label: 'Cancelled', color: 'text-red-600', bgColor: 'bg-red-100', icon: XCircle },
 };
 
-const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; class: string }> = {
-  PENDING: { label: 'Unpaid', class: 'badge-error' },
-  PARTIAL: { label: 'Partial', class: 'badge-warning' },
-  PAID: { label: 'Paid', class: 'badge-success' },
+const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; bgColor: string }> = {
+  PENDING: { label: 'Pending', color: 'text-red-600', bgColor: 'bg-red-100' },
+  PARTIAL: { label: 'Partial', color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
+  PAID: { label: 'Paid', color: 'text-green-600', bgColor: 'bg-green-100' },
 };
 
 export function OrdersPage() {
+  const { user, hasRole } = useAuth();
+
+  // Data state
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
-  const [_selectedOrder, _setSelectedOrder] = useState<typeof mockOrders[0] | null>(null);
-  // Order detail state reserved for future implementation
-  void _selectedOrder;
-  void _setSelectedOrder;
 
-  // Filter orders
-  const filteredOrders = mockOrders.filter(order => {
-    const matchesSearch = !searchQuery ||
-      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerPhone.includes(searchQuery);
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const matchesStatus = statusFilter === 'ALL' || order.orderStatus === statusFilter;
+  // Role-based permissions
+  const canViewAllStores = hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER']);
+  const _canRefund = hasRole(['SUPERADMIN', 'ADMIN', 'STORE_MANAGER']);
+  // Reserved for future refund functionality
+  void _canRefund;
 
-    // Date filtering
-    let matchesDate = true;
-    const orderDate = new Date(order.createdAt);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // Load orders on mount
+  useEffect(() => {
+    loadOrders();
+  }, [statusFilter, dateFilter]);
 
-    if (dateFilter === 'today') {
-      matchesDate = orderDate >= today;
-    } else if (dateFilter === 'week') {
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      matchesDate = orderDate >= weekAgo;
-    } else if (dateFilter === 'month') {
-      const monthAgo = new Date(today);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      matchesDate = orderDate >= monthAgo;
+  const loadOrders = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params: { storeId?: string; status?: string; date?: string } = {};
+      if (!canViewAllStores && user?.activeStoreId) {
+        params.storeId = user.activeStoreId;
+      }
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+      if (dateFilter !== 'all') {
+        params.date = dateFilter;
+      }
+      const response = await orderApi.getOrders(params);
+      setOrders(response.orders || response || []);
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+      setError('Failed to load orders. Please try again.');
+      setOrders([]);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    return matchesSearch && matchesStatus && matchesDate;
+  // Filter orders locally by search
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = !searchQuery ||
+      order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customerPhone?.includes(searchQuery);
+
+    return matchesSearch;
   });
 
   const formatDate = (dateStr: string) => {
@@ -205,24 +108,23 @@ export function OrdersPage() {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
+    });
+  };
+
+  const formatTime = (dateStr: string) => {
+    return new Date(dateStr).toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
   const formatCurrency = (amount: number) => {
-    return `₹${amount.toLocaleString('en-IN')}`;
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
-
-  // Stats
-  const todayOrders = mockOrders.filter(o => {
-    const orderDate = new Date(o.createdAt);
-    const today = new Date();
-    return orderDate.toDateString() === today.toDateString();
-  });
-  const todaySales = todayOrders.reduce((sum, o) => sum + o.grandTotal, 0);
-  const pendingDelivery = mockOrders.filter(o => ['CONFIRMED', 'IN_PROGRESS', 'READY'].includes(o.orderStatus)).length;
-  const pendingPayments = mockOrders.filter(o => o.balanceDue > 0).reduce((sum, o) => sum + o.balanceDue, 0);
 
   return (
     <div className="space-y-4">
@@ -230,59 +132,19 @@ export function OrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-          <p className="text-gray-500">Manage and track all orders</p>
+          <p className="text-gray-500">View and manage all orders</p>
         </div>
+        <button
+          onClick={loadOrders}
+          className="btn-outline flex items-center gap-2"
+          disabled={isLoading}
+        >
+          <RefreshCw className={clsx('w-4 h-4', isLoading && 'animate-spin')} />
+          Refresh
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 tablet:grid-cols-4 gap-4">
-        <div className="card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Today's Orders</p>
-              <p className="text-xl font-bold text-gray-900">{todayOrders.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Today's Sales</p>
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(todaySales)}</p>
-            </div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Pending Delivery</p>
-              <p className="text-xl font-bold text-yellow-600">{pendingDelivery}</p>
-            </div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Pending Payments</p>
-              <p className="text-xl font-bold text-red-600">{formatCurrency(pendingPayments)}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
+      {/* Search and Filters */}
       <div className="card">
         <div className="flex flex-col tablet:flex-row gap-4">
           <div className="relative flex-1">
@@ -292,26 +154,27 @@ export function OrdersPage() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="input-field pl-10"
-              placeholder="Search by order number, customer..."
+              placeholder="Search by order number, customer name, or phone..."
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {/* Status Filter */}
+          <div className="flex gap-2">
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value as OrderStatus | 'ALL')}
-              className="input-field w-auto"
+              className="input-field"
             >
               <option value="ALL">All Status</option>
-              {Object.entries(STATUS_CONFIG).map(([status, config]) => (
-                <option key={status} value={status}>{config.label}</option>
-              ))}
+              <option value="DRAFT">Draft</option>
+              <option value="CONFIRMED">Confirmed</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="READY">Ready</option>
+              <option value="DELIVERED">Delivered</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
-            {/* Date Filter */}
             <select
               value={dateFilter}
-              onChange={e => setDateFilter(e.target.value as typeof dateFilter)}
-              className="input-field w-auto"
+              onChange={e => setDateFilter(e.target.value as 'today' | 'week' | 'month' | 'all')}
+              className="input-field"
             >
               <option value="all">All Time</option>
               <option value="today">Today</option>
@@ -322,74 +185,124 @@ export function OrdersPage() {
         </div>
       </div>
 
+      {/* Error State */}
+      {error && (
+        <div className="card bg-red-50 border-red-200">
+          <div className="flex items-center gap-3 text-red-600">
+            <AlertCircle className="w-5 h-5" />
+            <p>{error}</p>
+            <button onClick={loadOrders} className="ml-auto text-sm underline">
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Orders List */}
-      <div className="card overflow-hidden">
-        {filteredOrders.length === 0 ? (
+      <div className="card">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-bv-red-600" />
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>No orders found</p>
+            <p>{searchQuery ? 'No orders found matching your search' : 'No orders yet'}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
             {filteredOrders.map(order => {
-              const statusConfig = STATUS_CONFIG[order.orderStatus];
+              const statusConfig = ORDER_STATUS_CONFIG[order.orderStatus];
               const paymentConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus];
-              const StatusIcon = statusConfig.icon;
+              const StatusIcon = statusConfig?.icon || FileText;
 
               return (
                 <div
                   key={order.id}
-                  className="p-4 hover:bg-gray-50 transition-colors"
+                  className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => setSelectedOrder(order)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     {/* Order Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="font-medium text-gray-900">{order.orderNumber}</span>
-                        <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1', statusConfig.class)}>
-                          <StatusIcon className="w-3 h-3" />
-                          {statusConfig.label}
-                        </span>
-                        <span className={paymentConfig.class}>{paymentConfig.label}</span>
+                    <div className="flex items-start gap-4">
+                      <div className={clsx(
+                        'w-10 h-10 rounded-lg flex items-center justify-center',
+                        statusConfig?.bgColor || 'bg-gray-100'
+                      )}>
+                        <StatusIcon className={clsx('w-5 h-5', statusConfig?.color || 'text-gray-600')} />
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
+                      <div>
+                        <p className="font-medium text-gray-900">{order.orderNumber}</p>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
                           <User className="w-3 h-3" />
-                          {order.customerName}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(order.createdAt)}
-                        </span>
-                        {order.hasWorkshopJob && (
-                          <span className="text-purple-600">Workshop: {order.workshopStatus}</span>
-                        )}
-                      </div>
-                      <div className="mt-2 text-sm text-gray-600">
-                        {order.items.map((item, i) => (
-                          <span key={i}>
-                            {i > 0 && ', '}
-                            {item.name} × {item.qty}
-                          </span>
-                        ))}
+                          <span>{order.customerName}</span>
+                          {order.patientName && order.patientName !== order.customerName && (
+                            <span className="text-gray-400">({order.patientName})</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          {formatDate(order.createdAt)} at {formatTime(order.createdAt)}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Amount & Actions */}
+                    {/* Status & Amount */}
                     <div className="text-right">
-                      <p className="text-lg font-bold text-gray-900">{formatCurrency(order.grandTotal)}</p>
-                      {order.balanceDue > 0 && (
-                        <p className="text-sm text-red-600">Due: {formatCurrency(order.balanceDue)}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors" title="View">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-bv-red-600 transition-colors" title="Print">
-                          <Printer className="w-4 h-4" />
-                        </button>
+                      <p className="font-bold text-gray-900">{formatCurrency(order.grandTotal)}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={clsx(
+                          'text-xs px-2 py-0.5 rounded-full',
+                          statusConfig?.bgColor,
+                          statusConfig?.color
+                        )}>
+                          {statusConfig?.label}
+                        </span>
+                        <span className={clsx(
+                          'text-xs px-2 py-0.5 rounded-full',
+                          paymentConfig?.bgColor,
+                          paymentConfig?.color
+                        )}>
+                          {paymentConfig?.label}
+                        </span>
                       </div>
+                      {order.balanceDue > 0 && (
+                        <p className="text-xs text-red-600 mt-1">
+                          Due: {formatCurrency(order.balanceDue)}
+                        </p>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Items Preview */}
+                  <div className="mt-2 ml-14 text-sm text-gray-500">
+                    {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="mt-3 ml-14 flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                      className="text-xs text-bv-red-600 hover:text-bv-red-700 flex items-center gap-1"
+                    >
+                      <Eye className="w-3 h-3" />
+                      View
+                    </button>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                    >
+                      <Printer className="w-3 h-3" />
+                      Print
+                    </button>
+                    {order.paymentStatus !== 'PAID' && (
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
+                      >
+                        <CreditCard className="w-3 h-3" />
+                        Collect Payment
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -397,6 +310,98 @@ export function OrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Order Detail Modal - Placeholder */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Order {selectedOrder.orderNumber}
+                </h2>
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <XCircle className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Customer</p>
+                    <p className="font-medium">{selectedOrder.customerName}</p>
+                    <p className="text-sm text-gray-500">{selectedOrder.customerPhone}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Status</p>
+                    <p className="font-medium">{ORDER_STATUS_CONFIG[selectedOrder.orderStatus]?.label}</p>
+                    <p className="text-sm text-gray-500">{PAYMENT_STATUS_CONFIG[selectedOrder.paymentStatus]?.label}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Items</p>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    {selectedOrder.items?.map((item, index) => (
+                      <div key={index} className="flex justify-between py-1 text-sm">
+                        <span>{item.productName} x{item.quantity}</span>
+                        <span className="font-medium">{formatCurrency(item.finalPrice)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(selectedOrder.subtotal)}</span>
+                  </div>
+                  {selectedOrder.totalDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount</span>
+                      <span>-{formatCurrency(selectedOrder.totalDiscount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span>Tax</span>
+                    <span>{formatCurrency(selectedOrder.taxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t">
+                    <span>Grand Total</span>
+                    <span>{formatCurrency(selectedOrder.grandTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-2">
+                    <span>Amount Paid</span>
+                    <span>{formatCurrency(selectedOrder.amountPaid)}</span>
+                  </div>
+                  {selectedOrder.balanceDue > 0 && (
+                    <div className="flex justify-between text-sm text-red-600">
+                      <span>Balance Due</span>
+                      <span>{formatCurrency(selectedOrder.balanceDue)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <button className="btn-primary flex-1 flex items-center justify-center gap-2">
+                    <Printer className="w-4 h-4" />
+                    Print Invoice
+                  </button>
+                  {selectedOrder.balanceDue > 0 && (
+                    <button className="btn-outline flex-1 flex items-center justify-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      Collect Payment
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

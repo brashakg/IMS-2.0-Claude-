@@ -178,7 +178,7 @@ export const inventoryApi = {
 // ============================================================================
 
 export const customerApi = {
-  getCustomers: async (params?: { search?: string; page?: number; pageSize?: number }) => {
+  getCustomers: async (params?: { search?: string; page?: number; pageSize?: number; storeId?: string; limit?: number }) => {
     const response = await api.get('/customers', { params });
     return response.data;
   },
@@ -214,7 +214,7 @@ export const customerApi = {
 // ============================================================================
 
 export const orderApi = {
-  getOrders: async (params?: { storeId?: string; status?: string; date?: string }) => {
+  getOrders: async (params?: { storeId?: string; status?: string; date?: string; customerId?: string; limit?: number }) => {
     const response = await api.get('/orders', { params });
     return response.data;
   },
