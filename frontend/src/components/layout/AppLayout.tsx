@@ -234,7 +234,7 @@ export function AppLayout() {
           )}
 
           {/* Store selector */}
-          {user && (hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER']) || user.storeIds.length > 1) && (
+          {user && user.storeIds && (hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER']) || user.storeIds.length > 1) && (
             <div className="relative ml-2">
               <button
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200"
