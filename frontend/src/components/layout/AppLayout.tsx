@@ -202,7 +202,7 @@ export function AppLayout() {
           </button>
 
           {/* Role selector */}
-          {user && user.roles.length > 1 && (
+          {user && user.roles && user.roles.length > 1 && user.activeRole && (
             <div className="relative">
               <button
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200"
