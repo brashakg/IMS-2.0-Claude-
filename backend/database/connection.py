@@ -181,8 +181,8 @@ class DatabaseConnection:
     
     def get_collection(self, name: str) -> Optional[Collection]:
         """Get a collection by name"""
-        if self.db:
-            return self.db[name]
+        if self._db is not None:
+            return self._db[name]
         return None
     
     # Collection shortcuts
