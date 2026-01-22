@@ -3,9 +3,10 @@ IMS 2.0 - HR Router
 """
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from typing import Optional
-from datetime import date, datetime
+from typing import Optional, List
+from datetime import date, datetime, timezone
 from .auth import get_current_user
+from database.connection import get_db
 
 router = APIRouter()
 
@@ -21,6 +22,47 @@ class AttendanceMarkRequest(BaseModel):
     status: str
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
+
+
+@router.get("/employees")
+async def list_employees(
+    store_id: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
+    active_only: bool = Query(True),
+    current_user: dict = Depends(get_current_user)
+):
+    """List employees (users) for HR purposes"""
+    db = get_db()
+    
+    if not db.is_connected:
+        return {"employees": [], "total": 0}
+    
+    query = {}
+    if store_id:
+        query["store_ids"] = store_id
+    if role:
+        query["roles"] = role
+    if active_only:
+        query["is_active"] = True
+    
+    users_cursor = db.users.find(query) if db.users is not None else []
+    
+    employees = []
+    for user in users_cursor:
+        employees.append({
+            "employee_id": user.get("user_id"),
+            "name": user.get("full_name"),
+            "username": user.get("username"),
+            "email": user.get("email"),
+            "phone": user.get("phone"),
+            "roles": user.get("roles", []),
+            "store_ids": user.get("store_ids", []),
+            "is_active": user.get("is_active", True),
+            "created_at": user.get("created_at"),
+        })
+    
+    return {"employees": employees, "total": len(employees)}
+
 
 @router.get("/attendance")
 async def get_attendance(
