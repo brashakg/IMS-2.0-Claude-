@@ -128,7 +128,7 @@ async def login(request: LoginRequest):
     user = None
     
     # First check MongoDB for user
-    if db.is_connected and db.users:
+    if db.is_connected and db.users is not None:
         user_doc = db.users.find_one({"username": request.username})
         if user_doc:
             user = {
