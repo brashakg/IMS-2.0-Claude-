@@ -91,19 +91,19 @@ export function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
+            {/* Username */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                Username
               </label>
               <input
-                type="email"
-                id="email"
+                type="text"
+                id="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input-field"
-                placeholder="your@email.com"
-                autoComplete="email"
+                placeholder="Enter username"
+                autoComplete="username"
                 disabled={isLoading}
               />
             </div>
