@@ -56,8 +56,37 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    const response = await api.post<LoginResponse>('/auth/login', credentials);
-    return response.data;
+    // Transform credentials to match backend expected format
+    const backendPayload = {
+      username: credentials.email, // Backend expects username
+      password: credentials.password,
+      store_id: credentials.storeId,
+      latitude: credentials.latitude,
+      longitude: credentials.longitude,
+    };
+    
+    const response = await api.post('/auth/login', backendPayload);
+    
+    // Transform backend response to frontend format
+    const data = response.data;
+    return {
+      success: true,
+      token: data.access_token,
+      user: {
+        id: data.user.user_id,
+        email: data.user.username,
+        name: data.user.full_name,
+        phone: '',
+        roles: data.user.roles,
+        activeRole: data.user.roles[0],
+        storeIds: data.user.store_ids,
+        activeStoreId: data.user.active_store_id || data.user.store_ids[0],
+        discountCap: 10,
+        isActive: true,
+        geoRestricted: false,
+        createdAt: new Date().toISOString(),
+      },
+    };
   },
 
   logout: async (): Promise<void> => {
