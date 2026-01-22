@@ -240,7 +240,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Role check
   const hasRole = (role: UserRole | UserRole[]): boolean => {
-    if (!state.user) return false;
+    if (!state.user || !state.user.activeRole) return false;
     const roles = Array.isArray(role) ? role : [role];
     return roles.includes(state.user.activeRole);
   };
@@ -250,7 +250,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!state.user) return false;
     // SUPERADMIN, ADMIN, AREA_MANAGER can access all stores
     if (hasRole(['SUPERADMIN', 'ADMIN', 'AREA_MANAGER'])) return true;
-    return state.user.storeIds.includes(storeId);
+    return state.user.storeIds?.includes(storeId) || false;
   };
 
   const value: AuthContextType = {
